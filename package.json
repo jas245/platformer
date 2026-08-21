@@ -1,0 +1,13 @@
+{
+  "name": "physics-multiplayer-game",
+  "version": "1.0.0",
+  "description": "A 2D physics multiplayer game",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "ws": "^7.5.13"
+  }
+}

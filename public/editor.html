@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Element Run - Map Editor</title>
+    <link rel="stylesheet" href="editor.css">
+</head>
+<body>
+
+    <div id="editor-container">
+        <!-- Main Drawing Workspace -->
+        <div id="workspace">
+            <canvas id="editor-canvas"></canvas>
+            <div id="status-bar">Pan: Ctrl + Left Click & Drag | Zoom: Scroll Wheel</div>
+        </div>
+
+        <!-- Right Side Panel Control -->
+        <div id="sidebar">
+            <h2>Map Settings</h2>
+            
+            <div class="control-group">
+                <button id="new-btn">New Map</button>
+                <button id="load-trigger-btn">Load File</button>
+                <input type="file" id="load-file-input" accept=".json" style="display: none;">
+            </div>
+
+            <div class="control-group">
+                <label>Map Width (px)</label>
+                <input type="number" id="map-width" value="3000" step="100">
+                <label>Map Height (px)</label>
+                <input type="number" id="map-height" value="1200" step="100">
+            </div>
+
+            <hr>
+
+            <h2>Elements</h2>
+            <div class="elements-list">
+                <div class="element-option active" data-type="ground">
+                    <div class="color-preview ground-color"></div>
+                    Ground Platform
+                </div>
+                <div class="element-option" data-type="lava">
+                    <div class="color-preview lava-color"></div>
+                    Fire Liquid (Lava)
+                </div>
+                <div class="element-option" data-type="water">
+                    <div class="color-preview water-color"></div>
+                    Water Liquid
+                </div>
+                <div class="element-option" data-type="toxic">
+                    <div class="color-preview toxic-color"></div>
+                    Green Liquid
+                </div>
+            </div>
+
+            <hr>
+
+            <div class="sidebar-footer">
+                <button id="save-btn">Save Map File</button>
+                <a href="index.html" class="back-link">Back to Game</a>
+            </div>
+        </div>
+    </div>
+
+    <script src="editor.js"></script>
+</body>
+</html>
