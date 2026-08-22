@@ -111,6 +111,7 @@ const activeLiquidPools = []; // Tracks our spring-based interactive pools
 const gameBoxes = {};          // Registry to map boxId -> Matter.js Box Body
 const collidingBoxes = new Set(); // Tracks boxIds the local player is actively pushing
 const submergedBoxes = new Set(); // Tracks box bodies currently inside a liquid pool
+const submergedProjectiles = new Set();
 
 const gameDoors = {};  
 
@@ -567,9 +568,6 @@ function startGame() {
             const frameWidth = 80;
             const frameHeight = 72;
             
-            const frameIndex = Math.floor(Date.now() / 300) % 2;
-            const sx = frameIndex * frameWidth;
-
             const drawW = 196;
 			const drawH = 250;
 			const offsetX = 15;
@@ -579,6 +577,24 @@ function startGame() {
             if (playerBody) {
                 const rowIndex = slimeRowMap[selectedIndex] !== undefined ? slimeRowMap[selectedIndex] : 1;
                 const sy = rowIndex * frameHeight;
+
+                // 1. Calculate active animation frame based on local movement keys
+                let frameIndex = 0;
+                const isLocalMoving = keys.Left || keys.Right;
+
+                if (isLocalMoving) {
+                    // Running animation: Cycles index 1 to 6 fast
+                    const runFrames = [1, 2, 3, 4, 5, 6];
+                    const runTick = Math.floor(Date.now() / 90) % runFrames.length; // 90ms per frame
+                    frameIndex = runFrames[runTick];
+                } else {
+                    // Idle animation: Cycles index 0 to 1 slowly
+                    const idleFrames = [0, 1];
+                    const idleTick = Math.floor(Date.now() / 300) % idleFrames.length; // 300ms per frame
+                    frameIndex = idleFrames[idleTick];
+                }
+				
+				const sx = frameIndex * frameWidth; // Map to spritesheet X coordinate
 
                 ctx.save(); 
                 ctx.translate(playerBody.position.x, playerBody.position.y);
@@ -700,26 +716,59 @@ function startGame() {
             }
         }
 
-		// --- 6.5 Draw Projectiles manually on Top of Background ---
+
+		// --- 6.5 Draw Projectiles manually on Top of Background (With Submerged Tinting) ---
         const projectilesOnScreen = activeBodies.filter(b => b.isProjectile);
         
         projectilesOnScreen.forEach(proj => {
+            const projRadius = 15;
+
+            // A. Draw solid projectile
             ctx.save();
-            // Translate origin to projectile's center position
             ctx.translate(proj.position.x, proj.position.y);
 
-            // Orange for Fireboy launcher, Blue for Watergirl launcher
             ctx.fillStyle = proj.launcherIndex === 0 ? '#e67e22' : '#2980b9';
             ctx.strokeStyle = '#ffffff';
             ctx.lineWidth = 2;
 
-            // Draw solid 15px radius circle
             ctx.beginPath();
-            ctx.arc(0, 0, 15, 0, Math.PI * 2);
+            ctx.arc(0, 0, projRadius, 0, Math.PI * 2);
             ctx.fill();
             ctx.stroke();
 
             ctx.restore();
+
+            // B. Apply shape-matched liquid tint overlay on submerged portion
+            activeLiquidPools.forEach(pool => {
+                const isOverlappingX = proj.position.x + projRadius > pool.x && proj.position.x - projRadius < pool.x + pool.width;
+                const isOverlappingY = proj.position.y + projRadius > pool.y;
+
+                if (isOverlappingX && isOverlappingY) {
+                    ctx.save();
+                    
+                    // Clip drawing to the waving water line
+                    clipToPoolSurface(ctx, pool);
+
+                    ctx.translate(proj.position.x, proj.position.y);
+
+                    // Setup translucent color matching the liquid
+                    let tintColor = 'rgba(52, 152, 219, 0.4)'; 
+                    if (pool.type === 'lava') {
+                        tintColor = 'rgba(230, 126, 34, 0.45)'; 
+                    } else if (pool.type === 'toxic') {
+                        tintColor = 'rgba(46, 204, 113, 0.45)'; 
+                    }
+
+                    ctx.fillStyle = tintColor;
+                    
+                    // Draw centered 15px radius tint circle over the projectile
+                    ctx.beginPath();
+                    ctx.arc(0, 0, projRadius, 0, Math.PI * 2);
+                    ctx.fill();
+
+                    ctx.restore();
+                }
+            });
         });
 
         // --- LAYER 7: Draw Rotated Submerged Box Tinting ---
@@ -1285,6 +1334,7 @@ function startGame() {
                     console.log("PROJECTILE HIT! Applying shockwave force.");
                     
                     // Instantly remove projectile from game world
+					submergedProjectiles.delete(proj);
                     Matter.Composite.remove(engine.world, proj);
                 }
             }
@@ -1333,6 +1383,13 @@ function startGame() {
 					collidingBoxes.delete(bodyA.boxId);
 				}
 				
+				// NEW: Remove Projectile-Liquid Submersion tracking
+				if (bodyA.isProjectile && bodyB.liquidType) {
+					submergedProjectiles.delete(bodyA);
+				} else if (bodyB.isProjectile && bodyA.liquidType) {
+					submergedProjectiles.delete(bodyB);
+				}
+				
             }
         }
     });
@@ -1367,6 +1424,13 @@ function startGame() {
             } else if (bodyB === playerBody && bodyA.isBox) {
                 collidingBoxes.add(bodyA.boxId);
             }
+			
+			// NEW: Track Projectile-Liquid Submersion contact
+            if (bodyA.isProjectile && bodyB.liquidType) {
+                submergedProjectiles.add(bodyA);
+            } else if (bodyB.isProjectile && bodyA.liquidType) {
+                submergedProjectiles.add(bodyB);
+            }
         }
     }
 	
@@ -1387,7 +1451,7 @@ function startGame() {
                     const pool = activeLiquidPools.find(p => p.body === other);
                     if (pool) {
                         const combinedSpeed = Math.abs(playerBody.velocity.y) + (Math.abs(playerBody.velocity.x) * 0.4);
-                        pool.splash(playerBody.position.x, combinedSpeed);
+                        pool.splash(playerBody.position.x, combinedSpeed * 1.8);
                     }
                 }
             }
@@ -1401,7 +1465,7 @@ function startGame() {
                         const pool = activeLiquidPools.find(p => p.body === other);
                         if (pool) {
                             const combinedSpeed = Math.abs(remoteBody.velocity.y) + (Math.abs(remoteBody.velocity.x) * 0.4);
-                            pool.splash(remoteBody.position.x, combinedSpeed);
+                            pool.splash(remoteBody.position.x, combinedSpeed * 1.8);
                         }
                     }
                 }
@@ -1410,10 +1474,28 @@ function startGame() {
             // NEW: Check Box Impacts (Allows boxes falling into pools to trigger ripples!)
             if (bodyA.isBox && bodyB.liquidType) {
                 const pool = activeLiquidPools.find(p => p.body === bodyB);
-                if (pool) pool.splash(bodyA.position.x, bodyA.velocity.y);
+				const combinedSpeed = Math.abs(bodyA.velocity.y) + (Math.abs(bodyA.velocity.x) * 0.4);
+                if (pool) pool.splash(bodyA.position.x, combinedSpeed * 1.4);
             } else if (bodyB.isBox && bodyA.liquidType) {
                 const pool = activeLiquidPools.find(p => p.body === bodyA);
-                if (pool) pool.splash(bodyB.position.x, bodyB.velocity.y);
+				const combinedSpeed = Math.abs(bodyB.velocity.y) + (Math.abs(bodyB.velocity.x) * 0.4);
+                if (pool) pool.splash(bodyB.position.x, combinedSpeed * 1.4);
+            }
+			
+			// --- NEW: Check Projectile Impacts (Allows fired energy balls to splash!) ---
+            if (bodyA.isProjectile && bodyB.liquidType) {
+                const pool = activeLiquidPools.find(p => p.body === bodyB);
+                if (pool) {
+                    // Triggers splash using projectile's high entry velocity
+					const scaledImpactSpeed = Math.abs(bodyA.velocity.y) * 0.3;
+                    pool.splash(bodyA.position.x, scaledImpactSpeed);
+                }
+            } else if (bodyB.isProjectile && bodyA.liquidType) {
+                const pool = activeLiquidPools.find(p => p.body === bodyA);
+                if (pool) {
+					const scaledImpactSpeed = Math.abs(bodyB.velocity.y) * 0.3;
+                    pool.splash(bodyB.position.x, scaledImpactSpeed);
+                }
             }
         }
     }
@@ -1741,6 +1823,14 @@ function startGame() {
             Matter.Body.setVelocity(box, { 
                 x: box.velocity.x * 0.90, 
                 y: box.velocity.y * 0.85 
+            });
+        });
+		
+		submergedProjectiles.forEach(proj => {
+            // Smoothly damp horizontal flight and vertical gravity speed inside the pool
+            Matter.Body.setVelocity(proj, { 
+                x: proj.velocity.x * 0.90, 
+                y: proj.velocity.y * 0.85 
             });
         });
 
@@ -2130,6 +2220,7 @@ function spawnLocalProjectile(x, y, vx, vy, launcherIndex) {
     // Set 10-second automatic deletion timer
     setTimeout(() => {
         if (Composite.allBodies(engine.world).includes(projectile)) {
+			submergedProjectiles.delete(projectile);
             Composite.remove(engine.world, projectile);
         }
     }, 10000);
