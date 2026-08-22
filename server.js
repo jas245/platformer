@@ -25,12 +25,13 @@ wss.on('connection', (ws) => {
             const data = JSON.parse(message);
 
             if (data.type === 'join') {
-                // Save player metadata
+                // Save player metadata with dynamic starting coordinates sent by client
                 players[playerId] = {
                     id: playerId,
                     character: data.character,
-                    x: 400,
-                    y: 100
+					charIndex: data.charIndex,
+                    x: data.x || 400,
+                    y: data.y || 100
                 };
                 
                 // 1. Tell the new player their own ID and send existing players
@@ -45,10 +46,39 @@ wss.on('connection', (ws) => {
                 if (players[playerId]) {
                     players[playerId].x = data.x;
                     players[playerId].y = data.y;
+					players[playerId].facing = data.facing;
+					players[playerId].moving = data.moving;
                     
                     // Broadcast updated position to all other players
-                    broadcast(JSON.stringify({ type: 'playerMoved', id: playerId, x: data.x, y: data.y }), ws);
+                    broadcast(JSON.stringify({ type: 'playerMoved', id: playerId, x: data.x, y: data.y, facing: data.facing, moving: data.moving   }), ws);
                 }
+            }
+			
+			if (data.type === 'boxUpdate') {
+                // Broadcast box positions and angles to the other client
+                broadcast(JSON.stringify({ type: 'boxUpdate', boxes: data.boxes }), ws);
+            }
+			
+			if (data.type === 'buttonPress') {
+                // Broadcast button state change to the other client
+                broadcast(JSON.stringify({ type: 'buttonPress', id: data.id, pressed: data.pressed }), ws);
+            }
+			
+			if (data.type === 'spawnProjectile') {
+                // Broadcast projectile spawn data to the other player
+                broadcast(JSON.stringify({ 
+                    type: 'spawnProjectile', 
+                    x: data.x, 
+                    y: data.y, 
+                    vx: data.vx, 
+                    vy: data.vy, 
+                    launcherIndex: data.launcherIndex 
+                }), ws);
+            }
+			
+			if (data.type === 'playerDeath') {
+                // Broadcast death reset trigger to the other client
+                broadcast(JSON.stringify({ type: 'playerDeath' }), ws);
             }
 			
 			if (data.type === 'playAudio') {
