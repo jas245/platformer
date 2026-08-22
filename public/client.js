@@ -8,40 +8,226 @@ const characters = [
 let loadedMapData = {
   "width": 3000,
   "height": 1200,
+  "fireboySpawn": {
+    "x": 100,
+    "y": 790
+  },
+  "watergirlSpawn": {
+    "x": 160,
+    "y": 790
+  },
   "elements": [
     {
       "type": "ground",
-      "x": 160,
-      "y": 730,
-      "width": 570,
-      "height": 200
+      "x": 0,
+      "y": 0,
+      "width": 50,
+      "height": 1200
     },
     {
       "type": "ground",
-      "x": 1180,
-      "y": 730,
-      "width": 620,
-      "height": 230
-    },
-    {
-      "type": "ground",
-      "x": 730,
-      "y": 820,
-      "width": 520,
-      "height": 170
-    },
-    {
-      "type": "lava",
-      "x": 730,
-      "y": 730,
+      "x": 50,
+      "y": 850,
       "width": 450,
-      "height": 90
+      "height": 150
+    },
+    {
+      "type": "ground",
+      "x": 500,
+      "y": 950,
+      "width": 350,
+      "height": 50
+    },
+    {
+      "type": "ground",
+      "x": 850,
+      "y": 850,
+      "width": 400,
+      "height": 150
+    },
+    {
+      "type": "toxic",
+      "x": 500,
+      "y": 850,
+      "width": 350,
+      "height": 100
+    },
+    {
+      "type": "button",
+      "color": "red",
+      "x": 950,
+      "y": 830,
+      "width": 100,
+      "height": 20
+    },
+    {
+      "type": "box",
+      "x": 1090,
+      "y": 800,
+      "width": 50,
+      "height": 50
+    },
+    {
+      "type": "ground",
+      "x": 650,
+      "y": 780,
+      "width": 50,
+      "height": 20
+    },
+    {
+      "type": "door",
+      "color": "red",
+      "orientation": "v",
+      "x": 1200,
+      "y": 800,
+      "width": 10,
+      "height": 50,
+      "targetX": 1200,
+      "targetY": 750
+    },
+    {
+      "type": "ground",
+      "x": 1250,
+      "y": 850,
+      "width": 250,
+      "height": 150
+    },
+    {
+      "type": "ground",
+      "x": 1200,
+      "y": 600,
+      "width": 300,
+      "height": 200
     }
   ]
 }
 
 let selectedIndex = 0;
 let socket = null;
+
+// Add to your global variables at the top of client.js
+const activeLiquidPools = []; // Tracks our spring-based interactive pools
+
+const gameBoxes = {};          // Registry to map boxId -> Matter.js Box Body
+const collidingBoxes = new Set(); // Tracks boxIds the local player is actively pushing
+const submergedBoxes = new Set(); // Tracks box bodies currently inside a liquid pool
+
+const gameDoors = {};  
+
+const grassSprite = new Image();
+grassSprite.src = 'grass.png';
+
+const bgSprite = new Image();
+bgSprite.src = 'background.png';
+
+
+
+const gameButtons = {};           // Registry to map buttonId -> Matter.js Button Body
+const activePressedButtons = new Set(); // Tracks buttonIds currently pressed by local physics
+
+const tintCanvas = document.createElement('canvas'); // Reusable offscreen canvas
+const tintCtx = tintCanvas.getContext('2d');
+
+let localSpeedX = 0;
+
+// --- Interactive Spring-Based Liquid Pool Class ---
+class LiquidPool {
+    constructor(body, type, x, y, width, height) {
+        this.body = body; // Matter.js body reference
+        this.type = type; // 'lava', 'water', or 'toxic'
+        this.x = x;       // Top-left corner X
+        this.y = y;       // Top-left corner Y
+        this.width = width;
+        this.height = height;
+        
+        this.waveFreq = 8; // Spacing between springs (8px gives a highly detailed, smooth wave)
+        
+        // Spring & physical fluid parameters (tweaked for smooth fluid movement)
+        this.k = 0.04;      // Spring stiffness constant
+        this.damp = 0.035;    // Internal dampening/friction
+        this.tension = 0.018; // Restoring speed
+        this.spread = 0.15;  // Wave propagation speed across neighbors
+        
+        this.frameCount = Math.ceil(this.width / this.waveFreq) + 1;
+        this.springs = [];
+        
+        // Initialize all individual vertical springs across the pool's width
+        for (let i = 0; i < this.frameCount; i++) {
+			const currentX = Math.min(this.x + this.width, this.x + (i * this.waveFreq));
+            this.springs.push({
+                x: currentX,
+                currentY: this.y, // Current Y height of this column
+                speed: 0,
+                update: function(targetY, k, damp, tension) {
+                    const displacement = targetY - this.currentY;
+                    this.speed += (tension * displacement) - (this.speed * damp);
+                    this.currentY += this.speed;
+                }
+            });
+        }
+    }
+    
+    // Updates spring physics and propagates wave movements to neighbors
+    update() {
+        for (let i = 0; i < this.springs.length; i++) {
+            this.springs[i].update(this.y, this.k, this.damp, this.tension);
+        }
+        
+        const leftDeltas = new Array(this.springs.length).fill(0);
+        const rightDeltas = new Array(this.springs.length).fill(0);
+        const wavPasses = 8; // Number of neighborhood pulling passes per frame
+        
+        // Propagate waves left and right
+        for (let j = 0; j < wavPasses; j++) {
+            for (let i = 0; i < this.springs.length; i++) {
+                if (i > 0) {
+                    leftDeltas[i] = this.spread * (this.springs[i].currentY - this.springs[i - 1].currentY);
+                    this.springs[i - 1].speed += leftDeltas[i];
+                }
+                if (i < this.springs.length - 1) {
+                    rightDeltas[i] = this.spread * (this.springs[i].currentY - this.springs[i + 1].currentY);
+                    this.springs[i + 1].speed += rightDeltas[i];
+                }
+            }
+            
+            // Apply neighbor pull deltas
+            for (let i = 0; i < this.springs.length; i++) {
+                if (i > 0) this.springs[i - 1].currentY += leftDeltas[i];
+                if (i < this.springs.length - 1) this.springs[i + 1].currentY += rightDeltas[i];
+            }
+        }
+    }
+    
+    // Triggers a localized splash wave based on entering object coordinates
+     splash(worldX, velocityY) {
+        const localX = worldX - this.x;
+        const index = Math.round(localX / this.waveFreq);
+        
+        if (index >= 0 && index < this.springs.length) {
+            // Stronger base force multiplier for high-velocity drops
+            const baseForce = velocityY * 3; 
+            
+            // Width of the player (Radius 25px = 50px diameter). 
+            // Affecting 4 springs left/right (approx 64px total width) creates a perfect fit.
+            const impactRadius = 4; 
+
+            for (let d = -impactRadius; d <= impactRadius; d++) {
+                const targetIndex = index + d;
+                
+                if (targetIndex >= 0 && targetIndex < this.springs.length) {
+                    // Linear falloff: 1.0 (100% force) in the center, tapering off smoothly to 0.2 at the edges
+                    const falloff = 1.0 - (Math.abs(d) / (impactRadius + 1));
+                    
+                    // Cap the maximum dip velocity to prevent extreme coordinate glitters
+                    const force = Math.min(55, baseForce * falloff);
+                    
+                    // Push the spring speed downward
+                    this.springs[targetIndex].speed = force;
+                }
+            }
+        }
+    }
+}
 
 //sounds
 const sounds = {
@@ -51,10 +237,35 @@ const sounds = {
 	'jumpscare': new Audio('jumpscare.mp3')
 };
 
+const slimeSprite = new Image();
+slimeSprite.src = 'slime_move.png'; // Loads the slimes spritesheet
+
+// Maps our selectedIndex to the correct row index of the spritesheet:
+// Row 1 (Red Slime) = Fire Boy, Row 3 (Blue Slime) = Water Girl
+const slimeRowMap = [1, 3];
+
+let facingDirection = 1; // 1 = Facing Right, -1 = Facing Left
+
+let isResetting = false;
+
 let myId = null;
 const otherPlayers = {}; // Keep track of other players' Matter.js bodies
 const collidingPlayers = new Set(); // Tracks IDs of other players we are currently touching
 const activeLiquids = new Set(); // Tracks liquid hazard types ('water', 'lava', 'toxic') we are touching
+let activeSlopeType = null;
+
+// --- Matter.js Collision Filters (Prevents projectile from hitting its launcher) ---
+const CATEGORY_MAP = 0x0001;        // Grounds, Slopes, Liquids, Buttons, Boxes
+const CATEGORY_FIREBOY = 0x0002;
+const CATEGORY_WATERGIRL = 0x0004;
+const CATEGORY_PROJECTILE = 0x0008;
+
+// --- Slingshot Aim State ---
+let isAiming = false;
+let aimStart = { x: 0, y: 0 };
+let aimCurrent = { x: 0, y: 0 };
+let launchVx = 0;
+let launchVy = 0;
 
 // DOM Elements
 const menuScreen = document.getElementById('menu-screen');
@@ -135,85 +346,491 @@ function startGame() {
     });
 
     Render.run(render);
-	// --- Custom Liquid Renderer (Draws animated waves in real-time) ---
+	
+	// Replace your entire Events.on(render, 'afterRender', ...) inside startGame() in client.js
+    // --- Custom World-Space Renderer (Draws Background, Buttons, Boxes, Slimes & Liquids in correct layers) ---
     Events.on(render, 'afterRender', () => {
         const ctx = render.context;
         
         // 1. Start camera viewport transformation
         Render.startViewTransform(render);
 
-        // Find all active bodies in the physical simulation
-        const bodies = Matter.Composite.allBodies(engine.world);
-        const liquids = bodies.filter(b => b.liquidType);
+        // --- LAYER 1: Draw World-Space Scrolling Background ---
+        if (bgSprite.complete) {
+            const scaleX = mapWidth / bgSprite.width;
+            const scaleY = mapHeight / bgSprite.height;
+            const scale = Math.max(scaleX, scaleY);
 
-        liquids.forEach(body => {
-            // Find top-left coordinates of the physical sensor box
-            const lx = body.position.x - body.liquidWidth / 2;
-            const ly = body.position.y - body.liquidHeight / 2;
+            const drawW = bgSprite.width * scale;
+            const drawH = bgSprite.height * scale;
+
+            ctx.drawImage(bgSprite, 0, 0, drawW, drawH);
+        }
+
+        // --- LAYER 2: Draw Tiled Ground & Slopes (Standard 50x50 Tiles) ---
+        if (grassSprite.complete) {
+            const tileW = 50;
+            const tileH = 50;
+            const bodies = Matter.Composite.allBodies(engine.world);
+
+            // A. TILE SOLID GROUND
+            const grounds = bodies.filter(b => b.isGround);
+            grounds.forEach(ground => {
+                const gx = ground.position.x - ground.groundWidth / 2;
+                const gy = ground.position.y - ground.groundHeight / 2;
+
+                const cols = ground.groundWidth / tileW;
+                const rows = ground.groundHeight / tileH;
+
+                for (let r = 0; r < rows; r++) {
+                    for (let c = 0; c < cols; c++) {
+                        ctx.drawImage(
+                            grassSprite,
+                            0, 0, 96, 96,
+                            gx + (c * tileW), gy + (r * tileH),
+                            tileW, tileH
+                        );
+                    }
+                }
+            });
+
+            // B. TILE TRAPEZIUM SLOPES
+            const slopes = bodies.filter(b => b.isSlope);
+            slopes.forEach(slope => {
+                const sx = slope.bounds.min.x;
+                const sy = slope.bounds.min.y;
+                const sw = slope.slopeWidth;
+                const sh = slope.slopeHeight;
+
+                ctx.save();
+                ctx.beginPath();
+                if (slope.slopeType === 'slope_lr') {
+                    ctx.moveTo(sx, sy + sh);
+                    ctx.lineTo(sx + sw, sy);
+                    ctx.lineTo(sx + sw, sy + sh);
+                } else {
+                    ctx.moveTo(sx, sy);
+                    ctx.lineTo(sx + sw, sy + sh);
+                    ctx.lineTo(sx, sy + sh);
+                }
+                ctx.closePath();
+                ctx.clip();
+
+                const cols = Math.ceil(sw / tileW);
+                const rows = Math.ceil(sh / tileH);
+
+                for (let r = 0; r < rows; r++) {
+                    for (let c = 0; c < cols; c++) {
+                        ctx.drawImage(
+                            grassSprite,
+                            0, 0, 96, 96,
+                            sx + (c * tileW), sy + (r * tileH),
+                            tileW, tileH
+                        );
+                    }
+                }
+                ctx.restore();
+            });
+        }
+
+        // --- LAYER 3: Draw Spring-Based Interactive Liquids ---
+        activeLiquidPools.forEach(pool => {
+            pool.update();
 
             let fillColor, waveColor;
-            if (body.liquidType === 'lava') {
-                fillColor = 'rgba(231, 76, 60, 0.6)'; // Translucent Fire Red
-                waveColor = '#e67e22';               // Solid Orange crest
-            } else if (body.liquidType === 'water') {
-                fillColor = 'rgba(52, 152, 219, 0.6)'; // Translucent Water Blue
-                waveColor = '#3498db';               // Solid Cyan crest
-            } else if (body.liquidType === 'toxic') {
-                fillColor = 'rgba(46, 204, 113, 0.6)'; // Translucent Green
-                waveColor = '#2ecc71';               // Solid Light Green crest
+            if (pool.type === 'lava') {
+                fillColor = 'rgba(231, 76, 60, 0.6)'; 
+                waveColor = '#e67e22';               
+            } else if (pool.type === 'water') {
+                fillColor = 'rgba(52, 152, 219, 0.6)'; 
+                waveColor = '#3498db';               
+            } else if (pool.type === 'toxic') {
+                fillColor = 'rgba(46, 204, 113, 0.6)'; 
+                waveColor = '#2ecc71';               
             }
 
             ctx.fillStyle = fillColor;
-            ctx.strokeStyle = fillColor;
+            ctx.strokeStyle = waveColor;
             ctx.lineWidth = 3;
 
-            // 1. Draw Filled Wave shape
             ctx.beginPath();
-            ctx.moveTo(lx, ly + body.liquidHeight);
-            ctx.lineTo(lx, ly);
+            ctx.moveTo(pool.x, pool.y + pool.height);
+            ctx.lineTo(pool.springs[0].x, pool.springs[0].currentY);
 
-            const waveSpeed = Date.now() * 0.005;
-            const waveHeight = 8;
-            const waveDensity = 0.04;
-
-            for (let px = lx; px <= lx + body.liquidWidth + 4; px += 4) {
-                const currentX = Math.min(px, lx + body.liquidWidth);
-                const pct = (currentX - lx) / body.liquidWidth;
-                const clampFactor = Math.sin(pct * Math.PI); // Keep edges flat on platforms
-
-                const py = ly + Math.sin((currentX * waveDensity) + waveSpeed) * waveHeight * clampFactor;
-                ctx.lineTo(currentX, py);
-
-                if (currentX === lx + body.liquidWidth) break;
+            for (let i = 1; i < pool.springs.length; i++) {
+                ctx.lineTo(pool.springs[i].x, pool.springs[i].currentY);
             }
 
-            ctx.lineTo(lx + body.liquidWidth, ly + body.liquidHeight);
+            ctx.lineTo(pool.x + pool.width, pool.y + pool.height);
             ctx.closePath();
             ctx.fill();
 
-            // 2. Draw Top Crest Outline
+            ctx.save();
+            ctx.strokeStyle = waveColor;
+            ctx.lineWidth = 4;
+            ctx.shadowBlur = 15;
+            ctx.shadowColor = waveColor;
+
             ctx.beginPath();
-            for (let px = lx; px <= lx + body.liquidWidth + 4; px += 4) {
-                const currentX = Math.min(px, lx + body.liquidWidth);
-                const pct = (currentX - lx) / body.liquidWidth;
-                const clampFactor = Math.sin(pct * Math.PI);
-
-                const py = ly + Math.sin((currentX * waveDensity) + waveSpeed) * waveHeight * clampFactor;
-
-                if (currentX === lx) {
-                    ctx.moveTo(currentX, py);
-                } else {
-                    ctx.lineTo(currentX, py);
-                }
-
-                if (currentX === lx + body.liquidWidth) break;
+            ctx.moveTo(pool.springs[0].x, pool.springs[0].currentY);
+            for (let i = 1; i < pool.springs.length; i++) {
+                ctx.lineTo(pool.springs[i].x, pool.springs[i].currentY);
             }
             ctx.stroke();
+            ctx.restore();
         });
+
+        // --- LAYER 4: Draw Interactive Buttons ---
+        for (let id in gameButtons) {
+            const btn = gameButtons[id];
+            
+            ctx.save();
+            // Translate origin to button center
+            ctx.translate(btn.position.x, btn.position.y);
+
+            let btnColor = '#e74c3c'; 
+            if (btn.color === 'blue') btnColor = '#3498db';
+            else if (btn.color === 'green') btnColor = '#2ecc71';
+
+            ctx.fillStyle = btnColor;
+            ctx.strokeStyle = '#2c3e50';
+            ctx.lineWidth = 2;
+
+            // Draw Isosceles Trapezium relative to center (Width 100, Height 20)
+            ctx.beginPath();
+            ctx.moveTo(-30, -10); // Top-Left
+            ctx.lineTo(30, -10);  // Top-Right
+            ctx.lineTo(50, 10);   // Bottom-Right
+            ctx.lineTo(-50, 10);  // Bottom-Left
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+
+            ctx.restore();
+        }
+
+		// --- LAYER 4.5: Draw Sliding Doors ---
+        for (let id in gameDoors) {
+            const door = gameDoors[id];
+
+            ctx.save();
+            // Translate origin to door's active center position
+            ctx.translate(door.position.x, door.position.y);
+
+            if (door.color === 'red') ctx.fillStyle = '#e74c3c';
+            else if (door.color === 'blue') ctx.fillStyle = '#3498db';
+            else if (door.color === 'green') ctx.fillStyle = '#2ecc71';
+
+            ctx.strokeStyle = '#2c3e50';
+            ctx.lineWidth = 2;
+
+            // Draw solid centered door rectangle
+            ctx.fillRect(-door.doorWidth / 2, -door.doorHeight / 2, door.doorWidth, door.doorHeight);
+            ctx.strokeRect(-door.doorWidth / 2, -door.doorHeight / 2, door.doorWidth, door.doorHeight);
+
+            ctx.restore();
+        }
+
+        // --- LAYER 5: Draw Physical Boxes ---
+        const activeBodies = Matter.Composite.allBodies(engine.world);
+        const boxesOnScreen = activeBodies.filter(b => b.isBox);
+
+        boxesOnScreen.forEach(box => {
+            const boxSize = 50;
+
+            ctx.save();
+            ctx.translate(box.position.x, box.position.y);
+            ctx.rotate(box.angle);
+
+            // A. Draw solid brown block
+            ctx.fillStyle = '#8b5a2b';
+            ctx.fillRect(-boxSize/2, -boxSize/2, boxSize, boxSize);
+            ctx.strokeStyle = '#5c3a1a';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(-boxSize/2, -boxSize/2, boxSize, boxSize);
+
+            // B. Draw Crate "X" Brace
+            ctx.strokeStyle = '#5c3a1a';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(-boxSize/2 + 6, -boxSize/2 + 6);
+            ctx.lineTo(boxSize/2 - 6, boxSize/2 - 6);
+            ctx.moveTo(boxSize/2 - 6, -boxSize/2 + 6);
+            ctx.lineTo(-boxSize/2 + 6, boxSize/2 - 6);
+            ctx.stroke();
+
+            ctx.restore();
+        });
+
+        // --- LAYER 6: Draw Animated Slime Sprites ---
+        if (slimeSprite.complete) {
+            const frameWidth = 80;
+            const frameHeight = 72;
+            
+            const frameIndex = Math.floor(Date.now() / 300) % 2;
+            const sx = frameIndex * frameWidth;
+
+            const drawW = 196;
+			const drawH = 250;
+			const offsetX = 15;
+			const offsetY = -16;
+
+            // Draw Local Player
+            if (playerBody) {
+                const rowIndex = slimeRowMap[selectedIndex] !== undefined ? slimeRowMap[selectedIndex] : 1;
+                const sy = rowIndex * frameHeight;
+
+                ctx.save(); 
+                ctx.translate(playerBody.position.x, playerBody.position.y);
+                ctx.scale(facingDirection, 1);
+
+                ctx.drawImage(
+                    slimeSprite,
+                    sx, sy, frameWidth, frameHeight,
+                    -drawW / 2 + offsetX,  
+                    -drawH / 2 + offsetY,  
+                    drawW, drawH
+                );
+                ctx.restore();
+
+                // Apply submerged liquid tint overlay
+                activeLiquidPools.forEach(pool => {
+                    const isOverlappingX = playerBody.position.x + drawW/2 > pool.x && playerBody.position.x - drawW/2 < pool.x + pool.width;
+                    const isOverlappingY = playerBody.position.y + drawH/2 > pool.y;
+
+                    if (isOverlappingX && isOverlappingY) {
+                        let tintColor = 'rgba(52, 152, 219, 0.45)'; 
+                        if (pool.type === 'lava') {
+                            tintColor = 'rgba(230, 126, 34, 0.5)'; 
+                        } else if (pool.type === 'toxic') {
+                            tintColor = 'rgba(46, 204, 113, 0.5)'; 
+                        }
+
+                        generateTintedFrame(sx, sy, frameWidth, frameHeight, tintColor);
+
+                        ctx.save();
+                        clipToPoolSurface(ctx, pool);
+                        ctx.translate(playerBody.position.x, playerBody.position.y);
+                        ctx.scale(facingDirection, 1);
+
+                        ctx.drawImage(
+                            tintCanvas,
+                            -drawW / 2 + offsetX,  
+                            -drawH / 2 + offsetY,  
+                            drawW, drawH
+                        );
+                        ctx.restore();
+                    }
+                });
+            }
+
+            // Draw Remote Players
+            for (let id in otherPlayers) {
+                const remoteBody = otherPlayers[id];
+                if (remoteBody) {
+                    const rIndex = remoteBody.charIndex !== undefined ? remoteBody.charIndex : 0;
+                    const rowIndex = slimeRowMap[rIndex] !== undefined ? slimeRowMap[rIndex] : 1;
+                    const sy = rowIndex * frameHeight;
+                    const rFacing = remoteBody.facing !== undefined ? remoteBody.facing : 1;
+					
+					// 1. Calculate active animation frame based on stable input-driven network state
+					let rFrameIndex = 0;
+					const isRemoteMoving = remoteBody.moving !== undefined ? remoteBody.moving : false;
+
+					if (isRemoteMoving) {
+						// Running animation: Cycles index 1 to 6 fast
+						const runFrames = [1, 2, 3, 4, 5, 6];
+						const runTick = Math.floor(Date.now() / 90) % runFrames.length;
+						rFrameIndex = runFrames[runTick];
+					} else {
+						// Idle animation: Cycles index 0 to 1 slowly
+						const idleFrames = [0, 1];
+						const idleTick = Math.floor(Date.now() / 300) % idleFrames.length;
+						rFrameIndex = idleFrames[idleTick];
+					}
+
+					const rsx = rFrameIndex * frameWidth;
+
+                    // A. Draw remote player normally
+					ctx.save();
+					ctx.translate(remoteBody.position.x, remoteBody.position.y);
+					ctx.scale(rFacing, 1);
+
+					ctx.drawImage(
+						slimeSprite,
+						rsx, sy, frameWidth, frameHeight,
+						-drawW / 2 + offsetX,  
+						-drawH / 2 + offsetY,  
+						drawW, drawH
+					);
+					ctx.restore();
+
+                    // Apply submerged liquid tint overlay for remote player
+                    activeLiquidPools.forEach(pool => {
+                        const isOverlappingX = remoteBody.position.x + drawW/2 > pool.x && remoteBody.position.x - drawW/2 < pool.x + pool.width;
+                        const isOverlappingY = remoteBody.position.y + drawH/2 > pool.y;
+
+                        if (isOverlappingX && isOverlappingY) {
+                            let tintColor = 'rgba(52, 152, 219, 0.45)';
+                            if (pool.type === 'lava') {
+                                tintColor = 'rgba(230, 126, 34, 0.5)';
+                            } else if (pool.type === 'toxic') {
+                                tintColor = 'rgba(46, 204, 113, 0.5)';
+                            }
+
+                            const activeRemoteFrameX = (Math.abs(remoteBody.velocity.x) > 0.5 ? [1,2,3,4,5,6][Math.floor(Date.now() / 90) % 6] : [0,1][Math.floor(Date.now() / 300) % 2]) * frameWidth;
+
+                            generateTintedFrame(activeRemoteFrameX, sy, frameWidth, frameHeight, tintColor);
+
+                            ctx.save();
+                            clipToPoolSurface(ctx, pool);
+                            ctx.translate(remoteBody.position.x, remoteBody.position.y);
+                            ctx.scale(rFacing, 1);
+
+                            ctx.drawImage(
+                                tintCanvas,
+                                -drawW / 2 + offsetX,  
+                                -drawH / 2 + offsetY,  
+                                drawW, drawH
+                            );
+                            ctx.restore();
+                        }
+                    });
+                }
+            }
+        }
+
+		// --- 6.5 Draw Projectiles manually on Top of Background ---
+        const projectilesOnScreen = activeBodies.filter(b => b.isProjectile);
+        
+        projectilesOnScreen.forEach(proj => {
+            ctx.save();
+            // Translate origin to projectile's center position
+            ctx.translate(proj.position.x, proj.position.y);
+
+            // Orange for Fireboy launcher, Blue for Watergirl launcher
+            ctx.fillStyle = proj.launcherIndex === 0 ? '#e67e22' : '#2980b9';
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = 2;
+
+            // Draw solid 15px radius circle
+            ctx.beginPath();
+            ctx.arc(0, 0, 15, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+
+            ctx.restore();
+        });
+
+        // --- LAYER 7: Draw Rotated Submerged Box Tinting ---
+        boxesOnScreen.forEach(box => {
+            const boxSize = 50;
+
+            activeLiquidPools.forEach(pool => {
+                const isOverlappingX = box.position.x + boxSize/2 > pool.x && box.position.x - boxSize/2 < pool.x + pool.width;
+                const isOverlappingY = box.position.y + boxSize/2 > pool.y;
+
+                if (isOverlappingX && isOverlappingY) {
+                    ctx.save();
+                    clipToPoolSurface(ctx, pool);
+
+                    ctx.translate(box.position.x, box.position.y);
+                    ctx.rotate(box.angle);
+
+                    let tintColor = 'rgba(52, 152, 219, 0.4)'; 
+                    if (pool.type === 'lava') {
+                        tintColor = 'rgba(230, 126, 34, 0.45)'; 
+                    } else if (pool.type === 'toxic') {
+                        tintColor = 'rgba(46, 204, 113, 0.45)'; 
+                    }
+
+                    ctx.fillStyle = tintColor;
+                    ctx.fillRect(-boxSize/2, -boxSize/2, boxSize, boxSize);
+
+                    ctx.restore();
+                }
+            });
+        });
+		/*
+        // --- LAYER 8: Draw Translucent Physics Circles (Debug Only) ---
+        ctx.lineWidth = 2;
+        if (playerBody) {
+            ctx.beginPath();
+            ctx.arc(playerBody.position.x, playerBody.position.y, 25, 0, Math.PI * 2);
+            ctx.strokeStyle = 'rgba(241, 196, 15, 0.6)'; 
+            ctx.stroke();
+            ctx.fillStyle = 'rgba(241, 196, 15, 0.8)';
+            ctx.fillRect(playerBody.position.x - 2, playerBody.position.y - 2, 4, 4);
+        }
+
+        for (let id in otherPlayers) {
+            const remoteBody = otherPlayers[id];
+            if (remoteBody) {
+                ctx.beginPath();
+                ctx.arc(remoteBody.position.x, remoteBody.position.y, 25, 0, Math.PI * 2);
+                ctx.strokeStyle = 'rgba(231, 76, 60, 0.6)'; 
+                ctx.stroke();
+            }
+        }*/
+		
+		if (isAiming) {
+            // Drag vector
+            const dx = aimCurrent.x - playerBody.position.x;
+            const dy = aimCurrent.y - playerBody.position.y;
+
+            const forceMultiplier = 0.2;
+            let tx = playerBody.position.x;
+            let ty = playerBody.position.y;
+            
+            // Calculate starting velocities
+            launchVx = dx * forceMultiplier;
+            launchVy = dy * forceMultiplier;
+
+            // Cap the launch speed safely to prevent extreme speeds
+            const maxSpeed = 25;
+            const speed = Math.sqrt(launchVx * launchVx + launchVy * launchVy);
+            if (speed > maxSpeed) {
+                launchVx = (launchVx / speed) * maxSpeed;
+                launchVy = (launchVy / speed) * maxSpeed;
+            }
+
+            let tvx = launchVx;
+            let tvy = launchVy;
+            const gravityStepY = 0.375; // Perfectly calibrated gravity step for engine.gravity.y = 1.5
+            const airDrag = 0.99;       // Matches Matter's default physical frictionAir (0.01)
+
+            ctx.save();
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)';
+            ctx.lineWidth = 3;
+            ctx.setLineDash([5, 5]); // Dotted line style
+
+            // Project 40 frames into the future
+            ctx.beginPath();
+            ctx.moveTo(tx, ty);
+            for (let i = 0; i < 80; i++) {
+				// 1. Apply air resistance (frictionAir)
+                tvx *= airDrag;
+                tvy *= airDrag;
+
+                // 2. Apply gravity acceleration
+                tvy += gravityStepY;
+				
+                // 3. Increment future coordinates
+                tx += tvx;
+                ty += tvy;
+
+                ctx.lineTo(tx, ty);
+            }
+            ctx.stroke();
+            ctx.restore();
+        };
 
         // 2. Reset viewport matrix back to normal
         Render.endViewTransform(render);
     });
+	
+
+	
 	
     // Configure the runner to use standard delta timings
     runner = Runner.create({
@@ -225,7 +842,18 @@ function startGame() {
     let mapWidth = 3000;
     let mapHeight = 1200;
     const platformsToCreate = [];
-
+	let boxCount = 0;
+	let buttonCount = 0;
+	let doorCount = 0;
+	
+	activeLiquidPools.length = 0;
+	for (let id in gameBoxes) delete gameBoxes[id]; 
+	for (let id in gameButtons) delete gameButtons[id];
+	for (let id in gameDoors) delete gameDoors[id];
+    collidingBoxes.clear();
+    submergedBoxes.clear();
+	activePressedButtons.clear();
+	
     if (loadedMapData) {
         // A. Load Map from Uploaded File
         mapWidth = loadedMapData.width || 3000;
@@ -243,8 +871,16 @@ function startGame() {
                     centerY, 
                     el.width, 
                     el.height, 
-                    { isStatic: true, render: { fillStyle: '#34495e' } }
+                    { 
+						isStatic: true, 
+						collisionFilter: { category: CATEGORY_MAP },
+						render: { visible: false } }
                 );
+				
+				platform.isGround = true;
+                platform.groundWidth = el.width;
+                platform.groundHeight = el.height;
+
                 platformsToCreate.push(platform);
 				
             }
@@ -261,15 +897,161 @@ function startGame() {
                         render: { visible: false } // Hide default grey boxes
                     }
                 );
+				
+				liquid.liquidType = el.type; // e.g., 'lava', 'water', or 'toxic'
+    
+				// These are needed so the renderer knows the width/height to draw the waves
+				liquid.liquidWidth = el.width;
+				liquid.liquidHeight = el.height;
                 
-                // Attach custom properties to retrieve during drawing loop
-                liquid.liquidType = el.type;
-                liquid.liquidWidth = el.width;
-                liquid.liquidHeight = el.height;
+                // Instantiate our spring pool and save its reference
+                const pool = new LiquidPool(liquid, el.type, el.x, el.y, el.width, el.height);
+                activeLiquidPools.push(pool);
 
                 platformsToCreate.push(liquid);
             }
-        });
+			else if (el.type === 'slope_lr' || el.type === 'slope_rl') {
+                let vertices;
+                const w = el.width;
+                const h = el.height;
+
+                if (el.type === 'slope_lr') {
+                    // Slopes up from left to right (hypotenuse on top-left)
+                    vertices = [{ x: 0, y: h }, { x: w, y: 0 }, { x: w, y: h }];
+                } else {
+                    // Slopes down from left to right (hypotenuse on top-right)
+                    vertices = [{ x: 0, y: 0 }, { x: w, y: h }, { x: 0, y: h }];
+                }
+
+                // Create the slope starting at (0,0) to let Matter calculate the shape centroid
+                const slopeBody = Bodies.fromVertices(0, 0, [vertices], {
+                    isStatic: true,
+					collisionFilter: { category: CATEGORY_MAP },
+                    render: { visible: false }
+                });
+				
+				slopeBody.isSlope = true;
+                slopeBody.slopeType = el.type; // 'slope_lr' or 'slope_rl'
+				
+                slopeBody.slopeWidth = w;
+                slopeBody.slopeHeight = h;
+
+                // Calculate Matter centroid offset and align perfectly with editor (x,y) coordinates
+                const offsetX = el.x - slopeBody.bounds.min.x;
+                const offsetY = el.y - slopeBody.bounds.min.y;
+                Matter.Body.translate(slopeBody, { x: offsetX, y: offsetY });
+
+                platformsToCreate.push(slopeBody);
+            }
+			else if (el.type === 'box') {
+                const centerX = el.x + el.width / 2;
+                const centerY = el.y + el.height / 2;
+
+                const boxBody = Bodies.rectangle(
+                    centerX, 
+                    centerY, 
+                    el.width, 
+                    el.height, 
+                    { 
+                        isStatic: false,   // Dynamic (movable & rotatable)
+                        friction: 0.1,     // Slidability friction
+                        frictionAir: 0.02, 
+                        restitution: 0.15, // Slight bounce
+                        density: 0.0005,   // FIXED: Half default density makes it lighter than player
+						collisionFilter: { category: CATEGORY_MAP },
+                        render: { visible: false }
+                    }
+                );
+
+                // Tag the body for collision and rendering checks
+                boxBody.isBox = true;
+				
+				boxBody.initialX = centerX;
+                boxBody.initialY = centerY;
+				
+				const boxId = 'box_' + boxCount;
+                boxBody.boxId = boxId;
+                gameBoxes[boxId] = boxBody; // Register in global lookup
+                boxCount++;
+
+                platformsToCreate.push(boxBody);
+            }
+			else if (el.type === 'button') {
+                const centerX = el.x + el.width / 2;
+                const centerY = el.y + el.height / 2;
+
+                // Isosceles Trapezium Vertices relative to center (Width 50, Height 20)
+                const vertices = [
+                    { x: -30, y: -10 }, // Top-Left (Center 60 = 30px left)
+                    { x: 30, y: -10 },  // Top-Right (Center 60 = 30px right)
+                    { x: 50, y: 10 },   // Bottom-Right
+                    { x: -50, y: 10 }   // Bottom-Left
+                ];
+
+                // Determine native fill color based on map settings
+                let btnColor = '#e74c3c'; // Red (Default)
+                if (el.color === 'blue') btnColor = '#3498db';
+                else if (el.color === 'green') btnColor = '#2ecc71';
+
+                const btnBody = Bodies.fromVertices(0, 0, [vertices], {
+                    isStatic: true,
+                    render: { visible: false }
+                });
+
+                // Align Matter centroid to exactly (el.x, el.y)
+                const offsetX = el.x - btnBody.bounds.min.x;
+                const offsetY = el.y - btnBody.bounds.min.y;
+                Matter.Body.translate(btnBody, { x: offsetX, y: offsetY });
+
+                // Attach custom properties
+                const btnId = 'button_' + buttonCount;
+                btnBody.isButton = true;
+                btnBody.buttonId = btnId;
+                btnBody.color = el.color;
+                btnBody.initialY = btnBody.position.y;
+                btnBody.isPressed = false;
+                btnBody.networkPressed = false; // Sync state from other client
+
+                gameButtons[btnId] = btnBody;
+                buttonCount++;
+
+                platformsToCreate.push(btnBody);
+            }
+			else if (el.type === 'door') {
+                const centerX = el.x + el.width / 2;
+                const centerY = el.y + el.height / 2;
+
+                const doorBody = Bodies.rectangle(
+                    centerX, 
+                    centerY, 
+                    el.width, 
+                    el.height, 
+                    { 
+                        isStatic: true, 
+                        render: { visible: false } // FIXED: Hide default solid blocks
+                    }
+                );
+
+                // Attach custom properties
+                const doorId = 'door_' + doorCount;
+                doorBody.isDoor = true;
+                doorBody.doorId = doorId;
+                doorBody.color = el.color;
+                doorBody.initialX = centerX;
+                doorBody.initialY = centerY;
+                // Convert top-left target coords from editor to Matter's center-of-mass coordinates
+                doorBody.targetX = el.targetX + el.width / 2;
+                doorBody.targetY = el.targetY + el.height / 2;
+                doorBody.doorWidth = el.width;
+                doorBody.doorHeight = el.height;
+
+                gameDoors[doorId] = doorBody;
+                doorCount++;
+
+                platformsToCreate.push(doorBody);
+            }
+		
+		});
     } else {
         // B. Default Fallback Map Layout
         const ground = Bodies.rectangle(
@@ -292,16 +1074,43 @@ function startGame() {
     
     // 4. Create the Player Body
     const playerColor = characters[selectedIndex].color;
+	
+	// Set default coordinates in case map file is blank
+    let spawnX = mapWidth / 2;
+    let spawnY = mapHeight - 300;
+	
+	if (loadedMapData) {
+        // Index 0 = Fire Boy, Index 1 = Water Girl
+        if (selectedIndex === 0 && loadedMapData.fireboySpawn) {
+            spawnX = loadedMapData.fireboySpawn.x;
+            spawnY = loadedMapData.fireboySpawn.y;
+        } else if (selectedIndex === 1 && loadedMapData.watergirlSpawn) {
+            spawnX = loadedMapData.watergirlSpawn.x;
+            spawnY = loadedMapData.watergirlSpawn.y;
+        } else {
+            // Earth Stone spawns in center by default
+            spawnX = mapWidth / 2;
+            spawnY = mapHeight - 300;
+        }
+    }
+	
+	const myCategory = selectedIndex === 0 ? CATEGORY_FIREBOY : CATEGORY_WATERGIRL;
+    const myMask = CATEGORY_MAP | (selectedIndex === 0 ? CATEGORY_WATERGIRL : CATEGORY_FIREBOY) | CATEGORY_PROJECTILE;
+	
     playerBody = Bodies.circle(
-        mapWidth / 2,            // Spawn in the horizontal center of the map
-        mapHeight - 600,         // Spawn safely above the platform heights
+        spawnX,            // Spawn in the horizontal center of the map
+        spawnY,         // Spawn safely above the platform heights
         25, 
         {
 			friction: 0,       // Disable native sliding friction
             frictionStatic: 0, // Disable native standing friction
             restitution: 0.1, 
             inertia: Infinity, 
-            render: { fillStyle: playerColor }
+			collisionFilter: {
+                category: myCategory, // Fireboy (0x0002) or Watergirl (0x0004)
+                mask: myMask          // Collides with map, other player, and projectiles
+            },
+            render: { visible: false  }
         }
     );
 
@@ -316,7 +1125,10 @@ function startGame() {
     socket.onopen = () => {
         socket.send(JSON.stringify({
             type: 'join',
-            character: characters[selectedIndex]
+            character: characters[selectedIndex],
+			charIndex: selectedIndex,
+            x: playerBody.position.x, // Send exact spawned physics coordinates
+            y: playerBody.position.y
         }));
     };
 	
@@ -344,6 +1156,8 @@ function startGame() {
             if (remoteBody) {
                 remoteBody.targetX = data.x;
                 remoteBody.targetY = data.y;
+				remoteBody.facing = data.facing;
+				remoteBody.moving = data.moving;
             }
         }
 
@@ -354,6 +1168,43 @@ function startGame() {
                 Composite.remove(engine.world, remoteBody);
                 delete otherPlayers[data.id];
             }
+        }
+		if (data.type === 'boxUpdate') {
+            data.boxes.forEach(update => {
+                const box = gameBoxes[update.id];
+                if (box) {
+                    const lerpFactor = 0.25;
+                    const dx = update.x - box.position.x;
+                    const dy = update.y - box.position.y;
+                    
+                    // Smoothly slide position and sync velocity
+                    Matter.Body.setVelocity(box, { x: dx * lerpFactor, y: dy * lerpFactor });
+                    Matter.Body.setPosition(box, { 
+                        x: box.position.x + (dx * lerpFactor), 
+                        y: box.position.y + (dy * lerpFactor) 
+                    });
+
+                    // Smoothly slide rotation angle
+                    const da = update.angle - box.angle;
+                    Matter.Body.setAngle(box, box.angle + (da * lerpFactor));
+                }
+            });
+        }
+		
+		if (data.type === 'buttonPress') {
+            const btn = gameButtons[data.id];
+            if (btn) {
+                btn.networkPressed = data.pressed; // Sync state from other client
+            }
+        }
+		
+		if (data.type === 'spawnProjectile') {
+            spawnLocalProjectile(data.x, data.y, data.vx, data.vy, data.launcherIndex);
+        }
+		
+		if (data.type === 'playerDeath') {
+            isResetting = true;
+            setTimeout(resetLevel, 1000); // Reset local screen 1 second later
         }
 		
 		if (data.type === 'playAudio') {
@@ -373,6 +1224,10 @@ function startGame() {
     // Helper function to spawn remote player avatars
     function spawnOtherPlayer(playerData) {
         if (otherPlayers[playerData.id]) return;
+		
+		const rIndex = playerData.charIndex !== undefined ? playerData.charIndex : 0;
+		const rCategory = rIndex === 0 ? CATEGORY_FIREBOY : CATEGORY_WATERGIRL;
+		const rMask = CATEGORY_MAP | (rIndex === 0 ? CATEGORY_WATERGIRL : CATEGORY_FIREBOY) | CATEGORY_PROJECTILE;
 
         const remoteBody = Bodies.circle(
             playerData.x, 
@@ -383,12 +1238,19 @@ function startGame() {
                 inertia: Infinity, 
                 friction: 0.05,
                 restitution: 0.1,
-                render: { fillStyle: playerData.character.color }
+				collisionFilter: {
+					category: rCategory,
+					mask: rMask
+				},
+                render: { visible: false }
             }
         );
 		
 		// Attach network ID to identify this body during collisions
         remoteBody.playerId = playerData.id;
+		remoteBody.charIndex = playerData.charIndex; 
+		remoteBody.facing = playerData.facing !== undefined ? playerData.facing : 1;
+		remoteBody.moving = playerData.moving !== undefined ? playerData.moving : false;
 
         // Initialize target coordinates for smooth rendering
         remoteBody.targetX = playerData.x;
@@ -402,19 +1264,46 @@ function startGame() {
     Events.on(engine, 'collisionStart', (event) => {
         checkGrounded(event);
         trackPlayerCollisions(event);
+		handleLiquidSplashes(event); 
+		
+		// --- NEW: Projectile Impact & Shockwave Detector ---
+        let pairs = event.pairs;
+        for (let i = 0; i < pairs.length; i++) {
+            let pair = pairs[i];
+            let bodyA = pair.bodyA.parent;
+            let bodyB = pair.bodyB.parent;
+
+            if (bodyA.isProjectile || bodyB.isProjectile) {
+                const proj = bodyA.isProjectile ? bodyA : bodyB;
+                const target = bodyA.isProjectile ? bodyB : bodyA;
+
+                // If projectile hits a player, apply shockwave force and delete the projectile
+                const isPlayer = target === playerBody || otherPlayers[target.playerId];
+
+                if (isPlayer) {
+                    applyShockwaveForce(target, proj);
+                    console.log("PROJECTILE HIT! Applying shockwave force.");
+                    
+                    // Instantly remove projectile from game world
+                    Matter.Composite.remove(engine.world, proj);
+                }
+            }
+        }
     });
     
     Events.on(engine, 'collisionActive', (event) => {
         checkGrounded(event);
         trackPlayerCollisions(event);
+		handleActiveLiquidSplashes(event);
     });
     
     Events.on(engine, 'collisionEnd', (event) => {
         let pairs = event.pairs;
         for (let i = 0; i < pairs.length; i++) {
             let pair = pairs[i];
-            if (pair.bodyA === playerBody || pair.bodyB === playerBody) {
-                let other = pair.bodyA === playerBody ? pair.bodyB : pair.bodyA;
+            if (pair.bodyA.parent === playerBody || pair.bodyB.parent === playerBody) {
+                let otherPart = pair.bodyA.parent === playerBody ? pair.bodyB : pair.bodyA;
+                let other = otherPart.parent; // Resolve to topmost parent body
                 
                 // Remove player from active collisions when we stop touching them
                 if (other.playerId) {
@@ -424,7 +1313,26 @@ function startGame() {
                 if (other.liquidType) {
                     activeLiquids.delete(other.liquidType);
                 }
+				if (other.isSlope) {
+                    activeSlopeType = null; // Reset slope tracking when exiting
+                }
                 isGrounded = false;
+				
+				let bodyA = pair.bodyA.parent;
+				let bodyB = pair.bodyB.parent;
+				if (bodyA.isBox && bodyB.liquidType) {
+					submergedBoxes.delete(bodyA);
+				} else if (bodyB.isBox && bodyA.liquidType) {
+					submergedBoxes.delete(bodyB);
+				}
+
+				// Remove Box-Player Push tracking
+				if (bodyA === playerBody && bodyB.isBox) {
+					collidingBoxes.delete(bodyB.boxId);
+				} else if (bodyB === playerBody && bodyA.isBox) {
+					collidingBoxes.delete(bodyA.boxId);
+				}
+				
             }
         }
     });
@@ -434,10 +1342,161 @@ function startGame() {
         let pairs = event.pairs;
         for (let i = 0; i < pairs.length; i++) {
             let pair = pairs[i];
-            if (pair.bodyA === playerBody || pair.bodyB === playerBody) {
-                let other = pair.bodyA === playerBody ? pair.bodyB : pair.bodyA;
+            
+            let bodyA = pair.bodyA.parent;
+            let bodyB = pair.bodyB.parent;
+
+            // Track Player-Player contacts
+            if (bodyA === playerBody || bodyB === playerBody) {
+                let other = bodyA === playerBody ? bodyB : bodyA;
                 if (other.playerId) {
                     collidingPlayers.add(other.playerId);
+                }
+            }
+
+            // Track Box-Liquid Submersion contact
+            if (bodyA.isBox && bodyB.liquidType) {
+                submergedBoxes.add(bodyA);
+            } else if (bodyB.isBox && bodyA.liquidType) {
+                submergedBoxes.add(bodyB);
+            }
+
+            // Track Box-Player Push contact (Local player takes authority over this box)
+            if (bodyA === playerBody && bodyB.isBox) {
+                collidingBoxes.add(bodyB.boxId);
+            } else if (bodyB === playerBody && bodyA.isBox) {
+                collidingBoxes.add(bodyA.boxId);
+            }
+        }
+    }
+	
+	// Helper to calculate impact positions and trigger ripples in active pools
+    // UPDATED: Calculates initial entry splashes using combined horizontal and vertical speeds
+    function handleLiquidSplashes(event) {
+        let pairs = event.pairs;
+        for (let i = 0; i < pairs.length; i++) {
+            let pair = pairs[i];
+            
+            let bodyA = pair.bodyA.parent;
+            let bodyB = pair.bodyB.parent;
+
+            // Check Local Player Impact
+            if (bodyA === playerBody || bodyB === playerBody) {
+                let other = bodyA === playerBody ? bodyB : bodyA;
+                if (other.liquidType) {
+                    const pool = activeLiquidPools.find(p => p.body === other);
+                    if (pool) {
+                        const combinedSpeed = Math.abs(playerBody.velocity.y) + (Math.abs(playerBody.velocity.x) * 0.4);
+                        pool.splash(playerBody.position.x, combinedSpeed);
+                    }
+                }
+            }
+
+            // Check Remote Player Impacts
+            for (let id in otherPlayers) {
+                const remoteBody = otherPlayers[id];
+                if (bodyA === remoteBody || bodyB === remoteBody) {
+                    let other = bodyA === remoteBody ? bodyB : bodyA;
+                    if (other.liquidType) {
+                        const pool = activeLiquidPools.find(p => p.body === other);
+                        if (pool) {
+                            const combinedSpeed = Math.abs(remoteBody.velocity.y) + (Math.abs(remoteBody.velocity.x) * 0.4);
+                            pool.splash(remoteBody.position.x, combinedSpeed);
+                        }
+                    }
+                }
+            }
+
+            // NEW: Check Box Impacts (Allows boxes falling into pools to trigger ripples!)
+            if (bodyA.isBox && bodyB.liquidType) {
+                const pool = activeLiquidPools.find(p => p.body === bodyB);
+                if (pool) pool.splash(bodyA.position.x, bodyA.velocity.y);
+            } else if (bodyB.isBox && bodyA.liquidType) {
+                const pool = activeLiquidPools.find(p => p.body === bodyA);
+                if (pool) pool.splash(bodyB.position.x, bodyB.velocity.y);
+            }
+        }
+    }
+
+    // NEW: Generates gentle continuous wakes/ripples at the players' feet as they walk inside the water
+    function handleActiveLiquidSplashes(event) {
+        let pairs = event.pairs;
+        for (let i = 0; i < pairs.length; i++) {
+            let pair = pairs[i];
+            
+            let bodyA = pair.bodyA.parent;
+            let bodyB = pair.bodyB.parent;
+
+            // Local Player Wading
+            if (bodyA === playerBody || bodyB === playerBody) {
+                let other = bodyA === playerBody ? bodyB : bodyA;
+                if (other.liquidType && Math.abs(playerBody.velocity.x) > 0.5) {
+                    const pool = activeLiquidPools.find(p => p.body === other);
+                    if (pool) {
+                        pool.splash(playerBody.position.x, Math.abs(playerBody.velocity.x) * 0.12);
+                    }
+                }
+            }
+
+            // Remote Player Wading
+            for (let id in otherPlayers) {
+                const remoteBody = otherPlayers[id];
+                if (bodyA === remoteBody || bodyB === remoteBody) {
+                    let other = bodyA === remoteBody ? bodyB : bodyA;
+                    if (other.liquidType && Math.abs(remoteBody.velocity.x) > 0.5) {
+                        const pool = activeLiquidPools.find(p => p.body === other);
+                        if (pool) {
+                            pool.splash(remoteBody.position.x, Math.abs(remoteBody.velocity.x) * 0.12);
+                        }
+                    }
+                }
+            }
+
+            // NEW: Box Wading (Ripples while dragging/pushing boxes inside the pool)
+            if (bodyA.isBox && bodyB.liquidType && Math.abs(bodyA.velocity.x) > 0.5) {
+                const pool = activeLiquidPools.find(p => p.body === bodyB);
+                if (pool) pool.splash(bodyA.position.x, Math.abs(bodyA.velocity.x) * 0.1);
+            } else if (bodyB.isBox && bodyA.liquidType && Math.abs(bodyB.velocity.x) > 0.5) {
+                const pool = activeLiquidPools.find(p => p.body === bodyA);
+                if (pool) pool.splash(bodyB.position.x, Math.abs(bodyB.velocity.x) * 0.1);
+            }
+        }
+    }
+	
+	// NEW: Generates gentle continuous wakes/ripples at the players' feet as they walk inside the water
+    function handleActiveLiquidSplashes(event) {
+        let pairs = event.pairs;
+        for (let i = 0; i < pairs.length; i++) {
+            let pair = pairs[i];
+            
+            // Local Player Wading
+            if (pair.bodyA.parent === playerBody || pair.bodyB.parent === playerBody) {
+                let otherPart = pair.bodyA.parent === playerBody ? pair.bodyB : pair.bodyA;
+                let other = otherPart.parent;
+                
+                // Only generate ripples if actively walking (speed > 0.5) inside a liquid sensor
+                if (other.liquidType && Math.abs(playerBody.velocity.x) > 0.5) {
+                    const pool = activeLiquidPools.find(p => p.body === other);
+                    if (pool) {
+                        // Apply a subtle, gentle continuous wave (12% of horizontal walking speed)
+                        pool.splash(playerBody.position.x, Math.abs(playerBody.velocity.x) * 0.12);
+                    }
+                }
+            }
+
+            // Remote Player Wading
+            for (let id in otherPlayers) {
+                const remoteBody = otherPlayers[id];
+                if (pair.bodyA.parent === remoteBody || pair.bodyB.parent === remoteBody) {
+                    let otherPart = pair.bodyA.parent === remoteBody ? pair.bodyB : pair.bodyA;
+                    let other = otherPart.parent;
+
+                    if (other.liquidType && Math.abs(remoteBody.velocity.x) > 0.5) {
+                        const pool = activeLiquidPools.find(p => p.body === other);
+                        if (pool) {
+                            pool.splash(remoteBody.position.x, Math.abs(remoteBody.velocity.x) * 0.12);
+                        }
+                    }
                 }
             }
         }
@@ -447,31 +1506,48 @@ function startGame() {
         let pairs = event.pairs;
         for (let i = 0; i < pairs.length; i++) {
             let pair = pairs[i];
-            
-            if (pair.bodyA === playerBody || pair.bodyB === playerBody) {
-                let other = pair.bodyA === playerBody ? pair.bodyB : pair.bodyA;
-				
-				// SKIP grounding logic if the object is a liquid hazard!
+			
+            let bodyA = pair.bodyA.parent;
+            let bodyB = pair.bodyB.parent;
+			
+            // Check parent references
+            if (pair.bodyA.parent === playerBody || pair.bodyB.parent === playerBody) {
+                let otherPart = pair.bodyA.parent === playerBody ? pair.bodyB : pair.bodyA;
+                let other = otherPart.parent; // Resolve to topmost parent body
+                
                 if (other.liquidType) {
-                    // Track that we are currently inside this liquid
                     activeLiquids.add(other.liquidType);
                     continue; 
                 }
-                
-                // 1. Verify player is vertically above the top surface of the platform
-                const isAbovePlatform = playerBody.position.y < other.bounds.min.y + 10;
 
-                // 2. Verify player is horizontally aligned over the platform's top surface 
-                // (We allow a small 10px buffer for landing on the very edge of the platform)
-                const isHorizontallyAligned = (playerBody.position.x > other.bounds.min.x - 10) && 
-                                              (playerBody.position.x < other.bounds.max.x + 10);
+                if (other.isSlope) {
+                    // A. SLOPES: Use parent-based collision normals (Fires console log correctly now)
+                    let normal = pair.collision.normal;
+                    let groundedOnSlope = false;
 
-                // Both must be true to count as grounded
-                if (isAbovePlatform && isHorizontallyAligned) {
-                    isGrounded = true;
+                    // If the collision angle is predominantly vertical (Math.abs > 0.5), you are on top
+                    if (Math.abs(normal.y) > 0.5) {
+                        groundedOnSlope = true;
+                    }
+
+                    if (groundedOnSlope) {
+                        isGrounded = true;
+                        activeSlopeType = other.slopeType;
+                    }
+                } else {
+                    // B. FLAT GROUND: Use relative position check
+                    const isAbovePlatform = playerBody.position.y < other.bounds.min.y + 10;
+                    const isHorizontallyAligned = (playerBody.position.x > other.bounds.min.x - 10) && 
+                                                  (playerBody.position.x < other.bounds.max.x + 10);
+
+                    if (isAbovePlatform && isHorizontallyAligned) {
+                        isGrounded = true;
+                    }
                 }
             }
-        }
+			
+
+		}
     }
 
     let networkTick = 0;
@@ -479,8 +1555,127 @@ function startGame() {
     // 6. Game Loop Update (Movement Force, Smoothing, & Network Broadcast)
     Events.on(engine, 'beforeUpdate', () => {
         if (!playerBody) return;
+		
+		if (isResetting) {
+            Matter.Body.setVelocity(playerBody, { x: 0, y: playerBody.velocity.y });
+            return;
+        }
+		
+		 // --- HAZARD DEATH DETECTION ---
+        let gotKilled = false;
+        if (selectedIndex === 0) { // Local Player is Fire Boy
+            // Dies in Water or Toxic Green Liquid
+            if (activeLiquids.has('water') || activeLiquids.has('toxic')) {
+                gotKilled = true;
+            }
+        } else if (selectedIndex === 1) { // Local Player is Water Girl
+            // Dies in Fire (Lava) or Toxic Green Liquid
+            if (activeLiquids.has('lava') || activeLiquids.has('toxic')) {
+                gotKilled = true;
+            }
+        }
 
-        let maxSpeed = 8;      // Maximum self-powered walking speed
+        if (gotKilled) {
+            triggerDeathReset();
+        }
+		
+		// --- Dynamic Button Spring Sinking ---
+        for (let id in gameButtons) {
+            const btn = gameButtons[id];
+            let isLocallyPressed = false;
+
+            // 1. Check if Local Player is standing on the button
+            const pDx = Math.abs(playerBody.position.x - btn.position.x);
+            const pDy = playerBody.position.y - btn.position.y;
+            if (pDx < 48 && pDy > -42 && pDy < -25) {
+                isLocallyPressed = true;
+            }
+
+            // 2. Check if any Box is standing on the button
+            for (let bId in gameBoxes) {
+                const box = gameBoxes[bId];
+                const bDx = Math.abs(box.position.x - btn.position.x);
+                const bDy = box.position.y - btn.position.y;
+                if (bDx < 48 && bDy > -42 && bDy < -25) {
+                    isLocallyPressed = true;
+                }
+            }
+
+            // FIXED: Removed remote player coordinates loop to prevent circular network echoes
+
+            // Combine local checks with remote network triggers
+            const isPressed = isLocallyPressed || btn.networkPressed;
+            const targetY = isPressed ? btn.initialY + 15 : btn.initialY; 
+
+            // State transition checks
+            if (isPressed && !btn.isPressed) {
+                btn.isPressed = true;
+                console.log(`Button PRESSED - ID: ${btn.buttonId} | Color: ${btn.color.toUpperCase()}`);
+                
+                // FIXED: Only broadcast to the server if the press occurred LOCALLY on our machine
+                if (isLocallyPressed && socket && socket.readyState === WebSocket.OPEN) {
+                    socket.send(JSON.stringify({ type: 'buttonPress', id: btn.buttonId, pressed: true }));
+                }
+            } else if (!isPressed && btn.isPressed) {
+                btn.isPressed = false;
+                console.log(`Button RELEASED - ID: ${btn.buttonId} | Color: ${btn.color.toUpperCase()}`);
+                
+                // FIXED: Only broadcast to the server if the release occurred LOCALLY on our machine
+                if (!isLocallyPressed && socket && socket.readyState === WebSocket.OPEN) {
+                    socket.send(JSON.stringify({ type: 'buttonPress', id: btn.buttonId, pressed: false }));
+                }
+            }
+
+            // Smoothly compress/rebound the physical spring body position
+            const dy = targetY - btn.position.y;
+            if (Math.abs(dy) > 0.1) {
+                Matter.Body.setPosition(btn, { x: btn.position.x, y: btn.position.y + (dy * 0.25) });
+            }
+        }
+		
+		for (let id in gameDoors) {
+            const door = gameDoors[id];
+            
+            // Check if any button matching this door's color is currently pressed
+            let isTriggered = false;
+            for (let bId in gameButtons) {
+                const btn = gameButtons[bId];
+                if (btn.color === door.color && btn.isPressed) {
+                    isTriggered = true;
+                    break;
+                }
+            }
+
+            // Determine target coordinates (Sinks/slides when triggered, returns when released)
+            const destX = isTriggered ? door.targetX : door.initialX;
+            const destY = isTriggered ? door.targetY : door.initialY;
+
+            // Calculate directional vector and distance to target
+            const dx = destX - door.position.x;
+            const dy = destY - door.position.y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+
+            if (dist > 0.1) {
+                let nextX = door.position.x;
+                let nextY = door.position.y;
+                const slideSpeed = 3; // Fixed velocity of 3 pixels per frame
+
+                if (dist <= slideSpeed) {
+                    // Snap directly to destination to prevent micro-oscillations
+                    nextX = destX;
+                    nextY = destY;
+                } else {
+                    // Step toward destination with uniform velocity
+                    nextX += (dx / dist) * slideSpeed;
+                    nextY += (dy / dist) * slideSpeed;
+                }
+
+                // Programmatically move the solid static body
+                Matter.Body.setPosition(door, { x: nextX, y: nextY });
+            }
+        }
+
+        let maxSpeed = 6;      // Maximum self-powered walking speed
         let accel = 0.25;         // How quickly you reach top speed
         let dragGround = 0.88;  // Deceleration when stopping on ground (restored to 0.88)
         let dragAir = 0.99;     // Very low drag in air
@@ -497,27 +1692,40 @@ function startGame() {
 
         let currentVelocity = playerBody.velocity;
         let targetVx = currentVelocity.x;
-
+		let targetVy = currentVelocity.y; 
+		
+		if (Math.abs(currentVelocity.x) > maxSpeed) {
+            localSpeedX = currentVelocity.x;
+        }
+		
         if (keys.Left) {
-            if (currentVelocity.x > -maxSpeed) {
-                targetVx = Math.max(-maxSpeed, currentVelocity.x - accel);
-            } else {
-                targetVx *= dragAir; 
-            }
-        } else if (keys.Right) {
-            if (currentVelocity.x < maxSpeed) {
-                targetVx = Math.min(maxSpeed, currentVelocity.x + accel);
-            } else {
-                targetVx *= dragAir; 
-            }
-        } else {
-            const activeDrag = isGrounded ? dragGround : dragAir;
-            targetVx *= activeDrag;
+			facingDirection = -1;
+            // Accelerate our running power leftwards independently of physical collisions
+            localSpeedX = Math.max(-maxSpeed, localSpeedX - accel);
             
-            if (Math.abs(targetVx) < 0.05) targetVx = 0;
+            if (activeSlopeType === 'slope_rl' && isGrounded) {
+                targetVy = localSpeedX; 
+            }
+        } 
+        else if (keys.Right) {
+			facingDirection = 1;
+            // Accelerate our running power rightwards independently of physical collisions
+            localSpeedX = Math.min(maxSpeed, localSpeedX + accel);
+            
+            if (activeSlopeType === 'slope_lr' && isGrounded) {
+                targetVy = -localSpeedX; 
+            }
+        } 
+        else {
+            // Smoothly decelerate our local accumulator when no keys are pressed
+            const activeDrag = isGrounded ? dragGround : dragAir;
+            localSpeedX *= activeDrag;
+            
+            if (Math.abs(localSpeedX) < 0.05) localSpeedX = 0;
         }
 
-        Matter.Body.setVelocity(playerBody, { x: targetVx, y: currentVelocity.y });
+		targetVx = localSpeedX;
+        Matter.Body.setVelocity(playerBody, { x: targetVx, y: targetVy  });
 
 		 // --- Apply Buoyancy (Cushions falling speed when submerged in water) ---
         if (inLiquid && playerBody.velocity.y > 1.5) {
@@ -527,6 +1735,14 @@ function startGame() {
                 y: playerBody.velocity.y * 0.85 
             });
         }
+		
+		submergedBoxes.forEach(box => {
+            // Apply horizontal viscous drag and upward buoyancy on the box body
+            Matter.Body.setVelocity(box, { 
+                x: box.velocity.x * 0.90, 
+                y: box.velocity.y * 0.85 
+            });
+        });
 
         // --- Smoothly Interpolate (Slide) Other Players ---
         for (let id in otherPlayers) {
@@ -575,13 +1791,35 @@ function startGame() {
                     socket.send(JSON.stringify({
                         type: 'update',
                         x: playerBody.position.x,
-                        y: playerBody.position.y
+                        y: playerBody.position.y,
+						facing: facingDirection,
+						moving: keys.Left || keys.Right
                     }));
                     // Record our last sent coordinates
                     lastSentX = playerBody.position.x;
                     lastSentY = playerBody.position.y;
                 }
             }
+			
+			if (collidingBoxes.size > 0) {
+				const boxUpdates = [];
+				collidingBoxes.forEach(id => {
+					const box = gameBoxes[id];
+					if (box) {
+						boxUpdates.push({
+							id: id,
+							x: box.position.x,
+							y: box.position.y,
+							angle: box.angle
+						});
+					}
+				});
+
+				socket.send(JSON.stringify({
+					type: 'boxUpdate',
+					boxes: boxUpdates
+				}));
+			}
         }
     });
 	
@@ -637,6 +1875,8 @@ function startGame() {
 
 // --- Control Mapping (Desktop & Mobile) ---
 function setupControls() {
+	
+	const canvas = document.getElementById('game-canvas');
     // A. Keyboard Listeners (Laptop)
     window.addEventListener('keydown', (e) => {
         if (e.code === 'ArrowLeft' || e.code === 'KeyA') keys.Left = true;
@@ -675,6 +1915,80 @@ function setupControls() {
     btnJump.addEventListener('touchstart', (e) => { 
         e.preventDefault(); 
         jump(); 
+    });
+	
+	function getMouseWorldPosition(e) {
+        const rect = canvas.getBoundingClientRect();
+        const sx = e.clientX - rect.left;
+        const sy = e.clientY - rect.top;
+
+        // The game's fixed internal design aspect ratio (1000 / 600 = 1.666...)
+        const targetAspect = 1000 / 600;
+        const currentAspect = rect.width / rect.height;
+
+        let w, h, ox, oy;
+        if (currentAspect > targetAspect) {
+            // Height-constrained (Letterbox bars on the sides)
+            h = rect.height;
+            w = h * targetAspect;
+            ox = (rect.width - w) / 2;
+            oy = 0;
+        } else {
+            // Width-constrained (Letterbox bars on the top and bottom)
+            w = rect.width;
+            h = w / targetAspect;
+            ox = 0;
+            oy = (rect.height - h) / 2;
+        }
+
+        // Calculate coordinates relative to the actual rendered game container (excluding black bars)
+        const relativeX = sx - ox;
+        const relativeY = sy - oy;
+
+        // Map to 1000x600 virtual game resolution
+        const canvasX = (relativeX / w) * 1000;
+        const canvasY = (relativeY / h) * 600;
+
+        // Scale to active world camera boundaries
+        const camWidth = render.bounds.max.x - render.bounds.min.x;
+        const camHeight = render.bounds.max.y - render.bounds.min.y;
+
+        return {
+            x: render.bounds.min.x + (canvasX / 1000) * camWidth,
+            y: render.bounds.min.y + (canvasY / 600) * camHeight
+        };
+    };
+
+    canvas.addEventListener('pointerdown', (e) => {
+        const mouseWorld = getMouseWorldPosition(e);
+        
+        // Check if player clicked/touched inside their own character boundaries (35px radius buffer)
+        const distToPlayer = Math.hypot(mouseWorld.x - playerBody.position.x, mouseWorld.y - playerBody.position.y);
+        
+        if (distToPlayer < 35) {
+            isAiming = true;
+			
+            aimStart = { x: playerBody.position.x, y: playerBody.position.y };
+            aimCurrent = { x: mouseWorld.x, y: mouseWorld.y };
+            canvas.setPointerCapture(e.pointerId); // Forces tracking even if dragging off-canvas
+			
+        }
+    });
+
+    canvas.addEventListener('pointermove', (e) => {
+        if (!isAiming) return;
+        const mouseWorld = getMouseWorldPosition(e);
+        aimCurrent = { x: mouseWorld.x, y: mouseWorld.y };
+    });
+
+    canvas.addEventListener('pointerup', (e) => {
+        if (!isAiming) return;
+        isAiming = false;
+        canvas.releasePointerCapture(e.pointerId);
+
+        // Fire the projectile!
+        fireProjectile(launchVx, launchVy);
+		console.log('hi');
     });
 
     
@@ -730,6 +2044,184 @@ function executeJumpscareLocally() {
             overlay.classList.add('hidden');
         }, 1500);
     }
+}
+
+// Add to the bottom of public/client.js
+// Helper to create a clipping path matching the dynamic, waving surface of a liquid pool
+function clipToPoolSurface(ctx, pool) {
+    ctx.beginPath();
+    ctx.moveTo(pool.x, pool.y + pool.height); // Bottom-Left
+    ctx.lineTo(pool.springs[0].x, pool.springs[0].currentY); // Top-Left (first spring)
+
+    // Trace across the waving surface
+    for (let i = 1; i < pool.springs.length; i++) {
+        ctx.lineTo(pool.springs[i].x, pool.springs[i].currentY);
+    }
+
+    ctx.lineTo(pool.x + pool.width, pool.y + pool.height); // Bottom-Right
+    ctx.closePath();
+    ctx.clip(); // Restrict all future drawing to this shape
+}
+
+// Add to the bottom of public/client.js
+// Generates a pixel-perfect solid color mask matching the slime's current frame
+function generateTintedFrame(sx, sy, width, height, color) {
+    tintCanvas.width = width;
+    tintCanvas.height = height;
+    tintCtx.clearRect(0, 0, width, height);
+    
+    // 1. Draw the active slime animation frame onto the offscreen canvas
+    tintCtx.drawImage(slimeSprite, sx, sy, width, height, 0, 0, width, height);
+    
+    // 2. Fill ONLY the non-transparent pixels with the target liquid color
+    tintCtx.globalCompositeOperation = 'source-in';
+    tintCtx.fillStyle = color;
+    tintCtx.fillRect(0, 0, width, height);
+}
+
+// Compiles and launches the projectile body
+function fireProjectile(vx, vy) {
+    // 1. Spawn locally
+    spawnLocalProjectile(playerBody.position.x, playerBody.position.y, vx, vy, selectedIndex);
+
+    // 2. Synchronize to the other player over the network
+    if (socket && socket.readyState === WebSocket.OPEN) {
+        socket.send(JSON.stringify({
+            type: 'spawnProjectile',
+            x: playerBody.position.x,
+            y: playerBody.position.y,
+            vx: vx,
+            vy: vy,
+            launcherIndex: selectedIndex
+        }));
+    }
+}
+
+// Spawns and configures the physical circular projectile
+function spawnLocalProjectile(x, y, vx, vy, launcherIndex) {
+    const { Bodies, Composite } = Matter;
+
+    // Define target mask (Ignores the launcher, but collides with map, boxes, and the target player)
+    const targetMask = CATEGORY_MAP | (launcherIndex === 0 ? CATEGORY_WATERGIRL : CATEGORY_FIREBOY);
+
+    const projectile = Bodies.circle(x, y, 15, {
+        isStatic: false,
+        friction: 0.05,
+        restitution: 0.5,
+        density: 0.001,
+        collisionFilter: {
+            category: CATEGORY_PROJECTILE,
+            mask: targetMask
+        },
+        render: {
+            visible: false
+        }
+    });
+
+    projectile.isProjectile = true;
+    projectile.launcherIndex = launcherIndex;
+
+    // Apply launching velocity force vector
+    Matter.Body.setVelocity(projectile, { x: vx, y: vy });
+
+    // Add to physical simulation
+    Composite.add(engine.world, projectile);
+
+    // Set 10-second automatic deletion timer
+    setTimeout(() => {
+        if (Composite.allBodies(engine.world).includes(projectile)) {
+            Composite.remove(engine.world, projectile);
+        }
+    }, 10000);
+}
+
+// Applies backward/upward shockwave physics push on target impact
+function applyShockwaveForce(targetBody, projectileBody) {
+    const dx = targetBody.position.x - projectileBody.position.x;
+    const dy = targetBody.position.y - projectileBody.position.y;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+
+    if (dist > 0.1) {
+        const blastSpeed = 4; // High-velocity physical push speed
+        const vx = (dx / dist) * blastSpeed;
+        const vy = (dy / dist) * blastSpeed - 4; // Adds a vertical lift vector of 4px
+
+        // Set the physical velocity vector directly
+        Matter.Body.setVelocity(targetBody, { x: vx, y: vy });
+        
+        // FIXED: If we got hit, sync our input accumulator immediately so the movement loop preserves the slide!
+        if (targetBody === playerBody) {
+            localSpeedX = vx;
+        }
+    }
+}
+
+function triggerDeathReset() {
+    isResetting = true;
+
+    // 1. Play 'anime-ahh' sound locally and sync it across the network
+    playSoundAndSync('sound3'); 
+
+    // 2. Notify the other player to trigger their reset countdown
+    if (socket && socket.readyState === WebSocket.OPEN) {
+        socket.send(JSON.stringify({
+            type: 'playerDeath'
+        }));
+    }
+
+    // 3. Reset the level locally after 1 second
+    setTimeout(resetLevel, 1000);
+}
+
+// Resets all players, boxes, and buttons to their starting coordinates
+function resetLevel() {
+    // 1. Reset Local Player Position
+    let spawnX = loadedMapData.width / 2;
+    let spawnY = loadedMapData.height - 300;
+
+    if (loadedMapData) {
+        if (selectedIndex === 0 && loadedMapData.fireboySpawn) {
+            spawnX = loadedMapData.fireboySpawn.x;
+            spawnY = loadedMapData.fireboySpawn.y;
+        } else if (selectedIndex === 1 && loadedMapData.watergirlSpawn) {
+            spawnX = loadedMapData.watergirlSpawn.x;
+            spawnY = loadedMapData.watergirlSpawn.y;
+        }
+    }
+
+    Matter.Body.setPosition(playerBody, { x: spawnX, y: spawnY });
+    Matter.Body.setVelocity(playerBody, { x: 0, y: 0 });
+    localSpeedX = 0; // Reset movement speed accumulator
+
+    // 2. Reset All Physical Boxes to initial coordinates
+    for (let id in gameBoxes) {
+        const box = gameBoxes[id];
+        if (box) {
+            Matter.Body.setPosition(box, { x: box.initialX, y: box.initialY });
+            Matter.Body.setVelocity(box, { x: 0, y: 0 });
+            Matter.Body.setAngle(box, 0); // Reset box rotation back to flat
+            Matter.Body.setAngularVelocity(box, 0);
+        }
+    }
+
+    // 3. Reset All Buttons back to unpressed state
+    activePressedButtons.clear();
+    activeLiquids.clear();
+    submergedBoxes.clear();
+
+    for (let id in gameButtons) {
+        const btn = gameButtons[id];
+        if (btn) {
+            btn.isPressed = false;
+            btn.networkPressed = false;
+            // Snaps button back up to unpressed height
+            Matter.Body.setPosition(btn, { x: btn.position.x, y: btn.initialY });
+        }
+    }
+
+    // 4. Release inputs and restore active play state
+    isResetting = false;
+    console.log("Level reset successfully.");
 }
 
 if ('ontouchstart' in window || navigator.maxTouchPoints > 0) {

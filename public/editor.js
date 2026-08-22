@@ -29,6 +29,9 @@ let dragOffsetY = 0;
 // Snapping value (10 pixels)
 const SNAP_GRID = 10;
 
+let fireboySpawn = null;  // { x, y }
+let watergirlSpawn = null; // { x, y }
+
 function resizeCanvas() {
     canvas.width = document.getElementById('workspace').clientWidth;
     canvas.height = document.getElementById('workspace').clientHeight;
@@ -78,7 +81,8 @@ function draw() {
             ctx.strokeStyle = '#4e6a85';
             ctx.lineWidth = 2 / zoom;
             ctx.strokeRect(el.x, el.y, el.width, el.height);
-        } else if (el.type === 'lava' || el.type === 'water' || el.type === 'toxic') {
+        } 
+		else if (el.type === 'lava' || el.type === 'water' || el.type === 'toxic') {
             // Setup dynamic colors based on liquid type
             let fillColor, waveColor;
             if (el.type === 'lava') {
@@ -143,6 +147,102 @@ function draw() {
             }
             ctx.stroke();
         }
+		else if (el.type === 'slope_lr') {
+            ctx.fillStyle = '#34495e';
+            ctx.strokeStyle = '#4e6a85';
+            ctx.lineWidth = 2 / zoom;
+
+            ctx.beginPath();
+            ctx.moveTo(el.x, el.y + el.height);             // Bottom-Left
+            ctx.lineTo(el.x + el.width, el.y);             // Top-Right
+            ctx.lineTo(el.x + el.width, el.y + el.height);   // Bottom-Right
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+        } 
+        else if (el.type === 'slope_rl') {
+            ctx.fillStyle = '#34495e';
+            ctx.strokeStyle = '#4e6a85';
+            ctx.lineWidth = 2 / zoom;
+
+            ctx.beginPath();
+            ctx.moveTo(el.x, el.y);                         // Top-Left
+            ctx.lineTo(el.x + el.width, el.y + el.height);   // Bottom-Right
+            ctx.lineTo(el.x, el.y + el.height);             // Bottom-Left
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+        }
+		else if (el.type === 'box') {
+            ctx.fillStyle = '#8b5a2b'; // Wooden Brown
+            ctx.fillRect(el.x, el.y, el.width, el.height);
+            ctx.strokeStyle = '#5c3a1a'; // Darker Brown Border
+            ctx.lineWidth = 2 / zoom;
+            ctx.strokeRect(el.x, el.y, el.width, el.height);
+
+            // Draw crate "X" brace detail
+            ctx.beginPath();
+            ctx.moveTo(el.x + 6, el.y + 6);
+            ctx.lineTo(el.x + el.width - 6, el.y + el.height - 6);
+            ctx.moveTo(el.x + el.width - 6, el.y + 6);
+            ctx.lineTo(el.x + 6, el.y + el.height - 6);
+            ctx.stroke();
+        }
+		else if (el.type === 'button') {
+            // Select fill color based on button color
+            if (el.color === 'red') ctx.fillStyle = '#e74c3c';
+            else if (el.color === 'blue') ctx.fillStyle = '#3498db';
+            else if (el.color === 'green') ctx.fillStyle = '#2ecc71';
+
+            ctx.strokeStyle = '#2c3e50';
+            ctx.lineWidth = 2 / zoom;
+
+            // Draw Isosceles Trapezium
+            ctx.beginPath();
+            ctx.moveTo(el.x + 20, el.y);                         // Top-Left
+            ctx.lineTo(el.x + el.width - 20, el.y);             // Top-Right
+            ctx.lineTo(el.x + el.width, el.y + el.height);       // Bottom-Right
+            ctx.lineTo(el.x, el.y + el.height);                 // Bottom-Left
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+        }
+		else if (el.type === 'door') {
+            if (el.color === 'red') ctx.fillStyle = '#e74c3c';
+            else if (el.color === 'blue') ctx.fillStyle = '#3498db';
+            else if (el.color === 'green') ctx.fillStyle = '#2ecc71';
+
+            ctx.strokeStyle = '#2c3e50';
+            ctx.lineWidth = 1.5 / zoom;
+
+            // A. Draw solid active door
+            ctx.fillRect(el.x, el.y, el.width, el.height);
+            ctx.strokeRect(el.x, el.y, el.width, el.height);
+
+            // B. Draw Trajectory Line & Translucent Ghost Door (Only shown when selected)
+            if (activeSelectedElement === el) {
+                ctx.save();
+                
+                // Draw dotted connection path
+                ctx.strokeStyle = '#f39c12';
+                ctx.lineWidth = 2 / zoom;
+                ctx.setLineDash([4, 4]);
+                ctx.beginPath();
+                ctx.moveTo(el.x + el.width/2, el.y + el.height/2);
+                ctx.lineTo(el.targetX + el.width/2, el.targetY + el.height/2);
+                ctx.stroke();
+
+                // Draw translucent target ghost door
+                if (el.color === 'red') ctx.fillStyle = 'rgba(231, 76, 60, 0.3)';
+                else if (el.color === 'blue') ctx.fillStyle = 'rgba(52, 152, 219, 0.3)';
+                else if (el.color === 'green') ctx.fillStyle = 'rgba(46, 204, 113, 0.3)';
+                
+                ctx.fillRect(el.targetX, el.targetY, el.width, el.height);
+                ctx.strokeRect(el.targetX, el.targetY, el.width, el.height);
+
+                ctx.restore();
+            }
+        }
     });
 
     // 4. Draw active rectangle draft
@@ -172,6 +272,38 @@ function draw() {
             activeSelectedElement.height + 8
         );
         ctx.setLineDash([]); // Reset line dashes back to solid
+    }
+	
+	// Draw Fireboy Spawn (Radius 25)
+    if (fireboySpawn) {
+        ctx.beginPath();
+        ctx.arc(fireboySpawn.x, fireboySpawn.y, 25, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(231, 76, 60, 0.7)';
+        ctx.fill();
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 2 / zoom;
+        ctx.stroke();
+
+        ctx.fillStyle = '#ffffff';
+        ctx.font = `bold ${10 / zoom}px Arial`;
+        ctx.textAlign = 'center';
+        ctx.fillText("FIREBOY", fireboySpawn.x, fireboySpawn.y + 4);
+    }
+
+    // Draw Watergirl Spawn (Radius 25)
+    if (watergirlSpawn) {
+        ctx.beginPath();
+        ctx.arc(watergirlSpawn.x, watergirlSpawn.y, 25, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(52, 152, 219, 0.7)';
+        ctx.fill();
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 2 / zoom;
+        ctx.stroke();
+
+        ctx.fillStyle = '#ffffff';
+        ctx.font = `bold ${10 / zoom}px Arial`;
+        ctx.textAlign = 'center';
+        ctx.fillText("WATERGIRL", watergirlSpawn.x, watergirlSpawn.y + 4);
     }
 
     ctx.restore();
@@ -206,7 +338,6 @@ canvas.addEventListener('wheel', (e) => {
 canvas.addEventListener('mousedown', (e) => {
     const mouseWorld = screenToWorld(e.clientX, e.clientY);
     
-    // A. Ctrl + Click = Pan Map
     if (e.ctrlKey) {
         isPanning = true;
         lastMouseX = e.clientX;
@@ -214,7 +345,7 @@ canvas.addEventListener('mousedown', (e) => {
         return;
     }
 
-    // B. Check if we clicked on an existing element (Check backwards for topmost)
+    // A. Check if we clicked on any existing element to select/drag first
     let clickedElement = null;
     for (let i = elements.length - 1; i >= 0; i--) {
         let el = elements[i];
@@ -226,13 +357,66 @@ canvas.addEventListener('mousedown', (e) => {
     }
 
     if (clickedElement) {
-        // Select and prepare to drag the element
         activeSelectedElement = clickedElement;
         isDraggingElement = true;
         dragOffsetX = mouseWorld.x - clickedElement.x;
         dragOffsetY = mouseWorld.y - clickedElement.y;
-    } else {
-        // Deselect and start drawing a new shape
+    } 
+    // B. If clicked on empty space and 'Box' is selected, place a new 50x50 box
+    else if (selectedType === 'box') {
+        const snappedX = snap(mouseWorld.x - 25); // Center the 50px box on cursor
+        const snappedY = snap(mouseWorld.y - 25);
+        const newBox = { type: 'box', x: snappedX, y: snappedY, width: 50, height: 50 };
+        elements.push(newBox);
+        activeSelectedElement = newBox; // Automatically highlight newly placed boxes
+    } 
+	else if (selectedType.startsWith('button_')) {
+        const color = selectedType.split('_')[1]; // Extracts 'red', 'blue', or 'green'
+        const snappedX = snap(mouseWorld.x - 50);
+        const snappedY = snap(mouseWorld.y - 10);
+        const newButton = { type: 'button', color: color, x: snappedX, y: snappedY, width: 100, height: 20 };
+        elements.push(newButton);
+        activeSelectedElement = newButton;
+    }
+	else if (selectedType.startsWith('door_')) {
+        const parts = selectedType.split('_'); // 'door', 'red/blue/green', 'v/h'
+        const color = parts[1];
+        const orientation = parts[2];
+        
+        let w = 10;
+        let h = 50;
+        if (orientation === 'h') {
+            w = 50;
+            h = 10;
+        }
+
+        const snappedX = snap(mouseWorld.x - w / 2);
+        const snappedY = snap(mouseWorld.y - h / 2);
+
+        const newDoor = { 
+            type: 'door', 
+            color: color, 
+            orientation: orientation, 
+            x: snappedX, 
+            y: snappedY, 
+            width: w, 
+            height: h,
+            targetX: snappedX, // Target X defaults to spawning X
+            targetY: snappedY  // Target Y defaults to spawning Y
+        };
+
+        elements.push(newDoor);
+        activeSelectedElement = newDoor;
+    }
+    // C. Single-click for characters
+    else if (selectedType === 'fireboy') {
+        fireboySpawn = { x: snap(mouseWorld.x), y: snap(mouseWorld.y) };
+    } 
+    else if (selectedType === 'watergirl') {
+        watergirlSpawn = { x: snap(mouseWorld.x), y: snap(mouseWorld.y) };
+    } 
+    // D. Drag to draw platforms/slopes/liquids
+    else {
         activeSelectedElement = null;
         isDrawing = true;
         drawStartX = snap(mouseWorld.x);
@@ -273,10 +457,20 @@ canvas.addEventListener('mouseup', () => {
     if (isDrawing) {
         isDrawing = false;
         
-        const x = Math.min(drawStartX, currentMouseWorldX);
-        const y = Math.min(drawStartY, currentMouseWorldY);
-        const width = Math.abs(currentMouseWorldX - drawStartX);
-        const height = Math.abs(currentMouseWorldY - drawStartY);
+        let x = Math.min(drawStartX, currentMouseWorldX);
+        let y = Math.min(drawStartY, currentMouseWorldY);
+        let width = Math.abs(currentMouseWorldX - drawStartX);
+        let height = Math.abs(currentMouseWorldY - drawStartY);
+		
+		// Force perfect 1:1 aspect ratio for 45-degree slopes
+        if (selectedType.startsWith('slope')) {
+            const size = Math.max(width, height);
+            width = size;
+            height = size;
+            // Adjust top-left position if drawing in reverse directions
+            if (currentMouseWorldX < drawStartX) x = drawStartX - size;
+            if (currentMouseWorldY < drawStartY) y = drawStartY - size;
+        }
 
         if (width >= 10 && height >= 10) {
             const newElement = { type: selectedType, x, y, width, height };
@@ -321,6 +515,8 @@ document.getElementById('save-btn').addEventListener('click', () => {
     const mapData = {
         width: mapWidth,
         height: mapHeight,
+        fireboySpawn: fireboySpawn,   // Export spawns
+        watergirlSpawn: watergirlSpawn,
         elements: elements
     };
 
@@ -350,6 +546,8 @@ document.getElementById('load-file-input').addEventListener('change', (e) => {
         mapWidth = data.width || 3000;
         mapHeight = data.height || 1200;
         elements = data.elements || [];
+        fireboySpawn = data.fireboySpawn || null;     // Import spawns
+        watergirlSpawn = data.watergirlSpawn || null;
 
         document.getElementById('map-width').value = mapWidth;
         document.getElementById('map-height').value = mapHeight;
@@ -375,6 +573,45 @@ window.addEventListener('keydown', (e) => {
         // Filter out the selected element from the map list
         elements = elements.filter(el => el !== activeSelectedElement);
         activeSelectedElement = null;
+        draw();
+    }
+});
+
+const targetPanel = document.getElementById('door-target-panel');
+const targetXInput = document.getElementById('door-target-x');
+const targetYInput = document.getElementById('door-target-y');
+
+// Monitor selection changes to toggle target panel visibility
+function updateTargetPanel() {
+    if (activeSelectedElement && activeSelectedElement.type === 'door') {
+        targetPanel.classList.remove('hidden-panel');
+        targetXInput.value = activeSelectedElement.targetX;
+        targetYInput.value = activeSelectedElement.targetY;
+    } else {
+        targetPanel.classList.add('hidden-panel');
+    }
+}
+
+// Intercept clicks to update panel visibility
+canvas.addEventListener('mousedown', updateTargetPanel);
+window.addEventListener('keydown', (e) => {
+    if (e.key === 'Delete' || e.key === 'Backspace') {
+        updateTargetPanel();
+    }
+});
+
+// Update selected door's Target X coordinates numerically
+targetXInput.addEventListener('change', (e) => {
+    if (activeSelectedElement && activeSelectedElement.type === 'door') {
+        activeSelectedElement.targetX = snap(parseInt(e.target.value) || 0);
+        draw();
+    }
+});
+
+// Update selected door's Target Y coordinates numerically
+targetYInput.addEventListener('change', (e) => {
+    if (activeSelectedElement && activeSelectedElement.type === 'door') {
+        activeSelectedElement.targetY = snap(parseInt(e.target.value) || 0);
         draw();
     }
 });
