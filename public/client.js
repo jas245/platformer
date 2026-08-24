@@ -10,97 +10,222 @@ let loadedMapData = {
   "height": 1200,
   "fireboySpawn": {
     "x": 100,
-    "y": 790
+    "y": 970
   },
   "watergirlSpawn": {
-    "x": 160,
-    "y": 790
+    "x": 240,
+    "y": 970
   },
   "elements": [
     {
       "type": "ground",
-      "x": 0,
-      "y": 0,
-      "width": 50,
-      "height": 1200
-    },
-    {
-      "type": "ground",
       "x": 50,
-      "y": 850,
-      "width": 450,
+      "y": 1000,
+      "width": 500,
       "height": 150
     },
     {
       "type": "ground",
-      "x": 500,
-      "y": 950,
-      "width": 350,
+      "x": 550,
+      "y": 1100,
+      "width": 200,
       "height": 50
     },
     {
       "type": "ground",
-      "x": 850,
-      "y": 850,
-      "width": 400,
+      "x": 750,
+      "y": 1000,
+      "width": 150,
       "height": 150
     },
     {
-      "type": "toxic",
-      "x": 500,
-      "y": 850,
+      "type": "lava",
+      "x": 550,
+      "y": 1020,
+      "width": 200,
+      "height": 80
+    },
+    {
+      "type": "water",
+      "x": 900,
+      "y": 1020,
+      "width": 200,
+      "height": 80
+    },
+    {
+      "type": "ground",
+      "x": 900,
+      "y": 1100,
+      "width": 200,
+      "height": 50
+    },
+    {
+      "type": "ground",
+      "x": 1100,
+      "y": 1000,
       "width": 350,
-      "height": 100
+      "height": 150
     },
     {
       "type": "button",
       "color": "red",
-      "x": 950,
-      "y": 830,
+      "x": 1150,
+      "y": 980,
       "width": 100,
-      "height": 20
-    },
-    {
-      "type": "box",
-      "x": 1090,
-      "y": 800,
-      "width": 50,
-      "height": 50
-    },
-    {
-      "type": "ground",
-      "x": 650,
-      "y": 780,
-      "width": 50,
       "height": 20
     },
     {
       "type": "door",
       "color": "red",
-      "orientation": "v",
-      "x": 1200,
-      "y": 800,
-      "width": 10,
-      "height": 50,
-      "targetX": 1200,
-      "targetY": 750
+      "orientation": "h",
+      "x": 1400,
+      "y": 890,
+      "width": 50,
+      "height": 10,
+      "targetX": 2050,
+      "targetY": 890
     },
     {
       "type": "ground",
-      "x": 1250,
+      "x": 1450,
+      "y": 1100,
+      "width": 650,
+      "height": 50
+    },
+    {
+      "type": "toxic",
+      "x": 1450,
+      "y": 1020,
+      "width": 650,
+      "height": 80
+    },
+    {
+      "type": "ground",
+      "x": 1750,
       "y": 850,
-      "width": 250,
+      "width": 50,
+      "height": 50
+    },
+    {
+      "type": "ground",
+      "x": 2100,
+      "y": 1000,
+      "width": 400,
       "height": 150
     },
     {
+      "type": "button",
+      "color": "red",
+      "x": 2150,
+      "y": 980,
+      "width": 100,
+      "height": 20
+    },
+    {
       "type": "ground",
-      "x": 1200,
+      "x": 1850,
+      "y": 750,
+      "width": 200,
+      "height": 20
+    },
+    {
+      "type": "lever",
+      "color": "yellow",
+      "x": 1900,
+      "y": 700,
+      "width": 100,
+      "height": 70
+    },
+    {
+      "type": "door",
+      "color": "yellow",
+      "orientation": "h",
+      "x": 2450,
+      "y": 840,
+      "width": 50,
+      "height": 10,
+      "targetX": 2350,
+      "targetY": 840
+    },
+    {
+      "type": "ground",
+      "x": 2500,
+      "y": 700,
+      "width": 50,
+      "height": 450
+    },
+    {
+      "type": "box",
+      "x": 2450,
+      "y": 730,
+      "width": 50,
+      "height": 50
+    },
+    {
+      "type": "slope_rl",
+      "x": 2300,
+      "y": 750,
+      "width": 100,
+      "height": 100
+    },
+    {
+      "type": "slope_lr",
+      "x": 2400,
       "y": 600,
+      "width": 100,
+      "height": 100
+    },
+    {
+      "type": "slope_rl",
+      "x": 2300,
+      "y": 450,
+      "width": 100,
+      "height": 100
+    },
+    {
+      "type": "slope_lr",
+      "x": 2400,
+      "y": 300,
+      "width": 100,
+      "height": 100
+    },
+    {
+      "type": "slope_rl",
+      "x": 2300,
+      "y": 150,
+      "width": 100,
+      "height": 100
+    },
+    {
+      "type": "ground",
+      "x": 1900,
+      "y": 150,
+      "width": 400,
+      "height": 100
+    },
+    {
+      "type": "textbox",
+      "x": 1950,
+      "y": 0,
       "width": 300,
-      "height": 200
+      "height": 100,
+      "text": "I love you baby\n<3",
+      "bgColor": "#f100f5",
+      "opacity": 0.3
+    },
+    {
+      "type": "ground",
+      "x": 2250,
+      "y": 550,
+      "width": 50,
+      "height": 200,
+      "text": "",
+      "bgColor": "",
+      "opacity": 1
     }
   ]
 }
+
 
 let selectedIndex = 0;
 let socket = null;
@@ -108,12 +233,16 @@ let socket = null;
 // Add to your global variables at the top of client.js
 const activeLiquidPools = []; // Tracks our spring-based interactive pools
 
+let activeCameraMatrix = null;
+
 const gameBoxes = {};          // Registry to map boxId -> Matter.js Box Body
 const collidingBoxes = new Set(); // Tracks boxIds the local player is actively pushing
 const submergedBoxes = new Set(); // Tracks box bodies currently inside a liquid pool
 const submergedProjectiles = new Set();
 
 const gameDoors = {};  
+const gameLevers = {};  
+const activeTextBoxes = [];
 
 const grassSprite = new Image();
 grassSprite.src = 'grass.png';
@@ -324,7 +453,7 @@ const keys = { Left: false, Right: false };
 function startGame() {
     // 1. Initialize Matter.js Physics Engine FIRST
     const { Engine, Render, Runner, Bodies, Composite, Events } = Matter;
-	const gameWidth = 1000;
+	const gameWidth = 1400;
     const gameHeight = 600;
     engine = Engine.create();
     engine.gravity.y = 1.5; // Adjust gravity for responsive jumping
@@ -368,6 +497,37 @@ function startGame() {
             ctx.drawImage(bgSprite, 0, 0, drawW, drawH);
         }
 
+
+		// --- LAYER 4: Draw Interactive Buttons ---
+        for (let id in gameButtons) {
+            const btn = gameButtons[id];
+            
+            ctx.save();
+            // Translate origin to button center
+            ctx.translate(btn.position.x, btn.position.y);
+
+            let btnColor = '#e74c3c'; 
+            if (btn.color === 'blue') btnColor = '#3498db';
+            else if (btn.color === 'green') btnColor = '#2ecc71';
+
+            ctx.fillStyle = btnColor;
+            ctx.strokeStyle = '#2c3e50';
+            ctx.lineWidth = 2;
+
+            // Draw Isosceles Trapezium relative to center (Width 100, Height 20)
+            ctx.beginPath();
+            ctx.moveTo(-30, -10); // Top-Left
+            ctx.lineTo(30, -10);  // Top-Right
+            ctx.lineTo(50, 10);   // Bottom-Right
+            ctx.lineTo(-50, 10);  // Bottom-Left
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+
+            ctx.restore();
+        }
+
+
         // --- LAYER 2: Draw Tiled Ground & Slopes (Standard 50x50 Tiles) ---
         if (grassSprite.complete) {
             const tileW = 50;
@@ -396,7 +556,7 @@ function startGame() {
             });
 
             // B. TILE TRAPEZIUM SLOPES
-            const slopes = bodies.filter(b => b.isSlope);
+            const slopes = bodies.filter(b => b.isMapSlope);
             slopes.forEach(slope => {
                 const sx = slope.bounds.min.x;
                 const sy = slope.bounds.min.y;
@@ -481,35 +641,59 @@ function startGame() {
             ctx.restore();
         });
 
-        // --- LAYER 4: Draw Interactive Buttons ---
-        for (let id in gameButtons) {
-            const btn = gameButtons[id];
-            
+         // --- LAYER 3.5: Draw Custom Visual Text Boxes (Purely Visual, Non-Physical) ---
+        activeTextBoxes.forEach(el => {
+            const lines = (el.text || "").split('\n');
             ctx.save();
-            // Translate origin to button center
-            ctx.translate(btn.position.x, btn.position.y);
 
-            let btnColor = '#e74c3c'; 
-            if (btn.color === 'blue') btnColor = '#3498db';
-            else if (btn.color === 'green') btnColor = '#2ecc71';
+            // 1. Dynamic Auto-scaling Font Size Algorithm (Matches Editor perfectly)
+            let fontSize = 100;
+            ctx.font = `${fontSize}px Arial`;
 
-            ctx.fillStyle = btnColor;
+            while (fontSize > 6) {
+                ctx.font = `${fontSize}px Arial`;
+                const lineHeight = fontSize * 1.2;
+                const totalHeight = lines.length * lineHeight;
+
+                let maxLineWidth = 0;
+                lines.forEach(line => {
+                    const measure = ctx.measureText(line).width;
+                    if (measure > maxLineWidth) maxLineWidth = measure;
+                });
+
+                const padding = 10;
+                if (maxLineWidth <= el.width - padding * 2 && totalHeight <= el.height - padding * 2) {
+                    break;
+                }
+                fontSize--;
+            }
+
+            // 2. Draw Translucent Background Box
+            ctx.globalAlpha = el.opacity;
+            ctx.fillStyle = el.bgColor;
+            ctx.fillRect(el.x, el.y, el.width, el.height);
+            ctx.restore(); // Restore globalAlpha back to 1.0 for outline
+
+            // 3. Draw Box Outline
             ctx.strokeStyle = '#2c3e50';
             ctx.lineWidth = 2;
+            ctx.strokeRect(el.x, el.y, el.width, el.height);
 
-            // Draw Isosceles Trapezium relative to center (Width 100, Height 20)
-            ctx.beginPath();
-            ctx.moveTo(-30, -10); // Top-Left
-            ctx.lineTo(30, -10);  // Top-Right
-            ctx.lineTo(50, 10);   // Bottom-Right
-            ctx.lineTo(-50, 10);  // Bottom-Left
-            ctx.closePath();
-            ctx.fill();
-            ctx.stroke();
+            // 4. Draw Centered Multi-Line Text
+            ctx.fillStyle = '#ffffff';
+            ctx.font = `${fontSize}px Arial`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
 
-            ctx.restore();
-        }
+            const lineHeight = fontSize * 1.2;
+            const totalHeight = lines.length * lineHeight;
+            let startY = el.y + el.height / 2 - totalHeight / 2 + lineHeight / 2;
 
+            lines.forEach((line, index) => {
+                ctx.fillText(line, el.x + el.width / 2, startY + index * lineHeight);
+            });
+        });
+		
 		// --- LAYER 4.5: Draw Sliding Doors ---
         for (let id in gameDoors) {
             const door = gameDoors[id];
@@ -521,6 +705,9 @@ function startGame() {
             if (door.color === 'red') ctx.fillStyle = '#e74c3c';
             else if (door.color === 'blue') ctx.fillStyle = '#3498db';
             else if (door.color === 'green') ctx.fillStyle = '#2ecc71';
+			else if (door.color === 'orange') ctx.fillStyle = '#e67e22';
+			else if (door.color === 'purple') ctx.fillStyle = '#9b59b6';
+			else if (door.color === 'yellow') ctx.fillStyle = '#f1c40f';
 
             ctx.strokeStyle = '#2c3e50';
             ctx.lineWidth = 2;
@@ -530,6 +717,84 @@ function startGame() {
             ctx.strokeRect(-door.doorWidth / 2, -door.doorHeight / 2, door.doorWidth, door.doorHeight);
 
             ctx.restore();
+        }
+
+		for (let id in gameLevers) {
+            const lever = gameLevers[id];
+            
+            let colorHex;
+            if (lever.color === 'orange') colorHex = '#e67e22';
+            else if (lever.color === 'purple') colorHex = '#9b59b6';
+            else if (lever.color === 'yellow') colorHex = '#f1c40f';
+
+            ctx.strokeStyle = '#2c3e50';
+            ctx.lineWidth = 2;
+
+            // A. Draw Tilted Handle & Orb (Pivot shifted down by 5px to sink into grass)
+            ctx.save();
+            ctx.translate(lever.position.x, lever.position.y + 15); 
+            ctx.rotate(lever.angle);                                 
+
+            // Draw grey handle bar
+            ctx.fillStyle = '#95a5a6';
+            ctx.fillRect(-5, -45, 10, 45);
+            ctx.strokeRect(-5, -45, 10, 45);
+
+            // Draw colored orb (Only glows when active / lever.isPressed is true)
+            if (lever.isPressed) {
+                // PASS 1: Wide, soft outer color halo
+                ctx.save();
+                ctx.shadowBlur = 30;         // Wide, soft spread
+                ctx.shadowColor = colorHex;  
+                ctx.fillStyle = colorHex;    // Solid base color
+                ctx.beginPath();
+                ctx.arc(0, -45, 8, 0, Math.PI * 2); 
+                ctx.fill();
+                ctx.restore();
+
+                // PASS 2: Tight, high-intensity colored border with a White-Hot Core
+                ctx.save();
+                ctx.shadowBlur = 10;         // Tight, dense glow
+                ctx.shadowColor = colorHex;  
+                ctx.fillStyle = '#ffffff';   // FIXED: Pure white center!
+                ctx.beginPath();
+                ctx.arc(0, -45, 6, 0, Math.PI * 2); // Slightly smaller (6px) to let colored edges show
+                ctx.fill();
+                ctx.restore();
+
+                // Draw standard dark border over the top to keep crisp pixel-art outline
+                ctx.strokeStyle = '#2c3e50';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.arc(0, -45, 8, 0, Math.PI * 2);
+                ctx.stroke();
+            } else {
+                // INACTIVE STATE: Flat color, no glow or white core
+                ctx.fillStyle = colorHex;
+                ctx.beginPath();
+                ctx.arc(0, -45, 8, 0, Math.PI * 2); 
+                ctx.fill();
+                ctx.stroke();
+            }
+
+            ctx.restore();
+
+            // B. Draw Pivot Cap Circle (Diameter 12px) to hide rotation gap
+            ctx.fillStyle = '#95a5a6'; // Solid Grey
+            ctx.beginPath();
+            ctx.arc(lever.position.x, lever.position.y + 15, 5, 0, Math.PI * 2);
+            ctx.fill();
+
+            // C. Draw Upside-Down Isosceles Base Plate (Sunk by 5px into grass)
+            ctx.fillStyle = colorHex; // Solid Grey
+            ctx.beginPath();
+            ctx.moveTo(lever.position.x - 50, lever.position.y + 15); // Top-Left (Wide - 50px left of center)
+            ctx.lineTo(lever.position.x + 50, lever.position.y + 15); // Top-Right (Wide - 50px right of center)
+            ctx.lineTo(lever.position.x + 30, lever.position.y + 35); // Bottom-Right (Narrow - 30px right of center)
+            ctx.lineTo(lever.position.x - 30, lever.position.y + 35); // Bottom-Left (Narrow - 30px left of center)
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
         }
 
         // --- LAYER 5: Draw Physical Boxes ---
@@ -874,7 +1139,9 @@ function startGame() {
             ctx.restore();
         };
 
-        // 2. Reset viewport matrix back to normal
+        
+		activeCameraMatrix = ctx.getTransform();
+		// 2. Reset viewport matrix back to normal
         Render.endViewTransform(render);
     });
 	
@@ -894,11 +1161,14 @@ function startGame() {
 	let boxCount = 0;
 	let buttonCount = 0;
 	let doorCount = 0;
+	let leverCount = 0;
 	
 	activeLiquidPools.length = 0;
+	activeTextBoxes.length = 0;
 	for (let id in gameBoxes) delete gameBoxes[id]; 
 	for (let id in gameButtons) delete gameButtons[id];
 	for (let id in gameDoors) delete gameDoors[id];
+	for (let id in gameLevers) delete gameLevers[id]
     collidingBoxes.clear();
     submergedBoxes.clear();
 	activePressedButtons.clear();
@@ -980,6 +1250,7 @@ function startGame() {
                 });
 				
 				slopeBody.isSlope = true;
+				slopeBody.isMapSlope = true;
                 slopeBody.slopeType = el.type; // 'slope_lr' or 'slope_rl'
 				
                 slopeBody.slopeWidth = w;
@@ -1098,6 +1369,71 @@ function startGame() {
                 doorCount++;
 
                 platformsToCreate.push(doorBody);
+            }
+			else if (el.type === 'lever') {
+                const centerX = el.x + el.width / 2;
+                const centerY = el.y + el.height / 2;
+
+                const leverBody = Bodies.rectangle(
+                    centerX, 
+                    centerY, 
+                    el.width, 
+                    el.height, 
+                    { 
+                        isStatic: true, 
+                        isSensor: true, // Sensors so players can walk through to trigger
+                        render: { visible: false } 
+                    }
+                );
+				
+				// 3. Solid Walkable Handle Body (Tag as slope so player can run up it!)
+                const handleBody = Bodies.rectangle(
+                    centerX,
+                    centerY - 10,
+                    12, // 12px thickness
+                    55, // 55px height
+                    {
+                        isStatic: true,
+                        isSlope: true,        // Enable climbing
+                        slopeType: 'slope_lr', // Starts pointing right
+                        slopeWidth: 55,
+                        slopeHeight: 55,
+                        render: { visible: false }
+                    }
+                );
+
+                // Attach custom properties
+                const leverId = 'lever_' + leverCount;
+                leverBody.isLever = true;
+                leverBody.leverId = leverId;
+                leverBody.color = el.color;
+                leverBody.isPressed = false;    // Normal state is inactive (pointing right)
+				leverBody.isPressedLocalState = false;
+                leverBody.angle = 0.5;          // Current visual angle (rad)
+                leverBody.networkPressed = false; 
+				leverBody.handleBody = handleBody; 
+				
+				// TAG the handle so we can detect player & box pushes
+                handleBody.isLeverHandle = true;
+                handleBody.leverParentId = leverId;
+                leverBody.handleBody = handleBody; 
+
+                gameLevers[leverId] = leverBody;
+                leverCount++;
+
+                platformsToCreate.push(leverBody, handleBody);
+            }
+			else if (el.type === 'textbox') {
+                // Skip physics completely! Push directly into visual array
+                activeTextBoxes.push({
+                    x: el.x,
+                    y: el.y,
+                    width: el.width,
+                    height: el.height,
+                    text: el.text || "Sample Text",
+                    bgColor: el.bgColor || "#34495e",
+                    opacity: el.opacity !== undefined ? el.opacity : 0.8
+                });
             }
 		
 		});
@@ -1247,6 +1583,13 @@ function startGame() {
             }
         }
 		
+		 if (data.type === 'leverToggle') {
+            const lever = gameLevers[data.id];
+            if (lever) {
+                lever.networkPressed = data.pressed; // Sync state from other client
+            }
+        }
+		
 		if (data.type === 'spawnProjectile') {
             spawnLocalProjectile(data.x, data.y, data.vx, data.vy, data.launcherIndex);
         }
@@ -1314,6 +1657,7 @@ function startGame() {
         checkGrounded(event);
         trackPlayerCollisions(event);
 		handleLiquidSplashes(event); 
+		handleLeverCollisions(event);
 		
 		// --- NEW: Projectile Impact & Shockwave Detector ---
         let pairs = event.pairs;
@@ -1345,6 +1689,7 @@ function startGame() {
         checkGrounded(event);
         trackPlayerCollisions(event);
 		handleActiveLiquidSplashes(event);
+		handleLeverCollisions(event);
     });
     
     Events.on(engine, 'collisionEnd', (event) => {
@@ -1500,47 +1845,38 @@ function startGame() {
         }
     }
 
-    // NEW: Generates gentle continuous wakes/ripples at the players' feet as they walk inside the water
-    function handleActiveLiquidSplashes(event) {
+    function handleLeverCollisions(event) {
         let pairs = event.pairs;
         for (let i = 0; i < pairs.length; i++) {
             let pair = pairs[i];
-            
             let bodyA = pair.bodyA.parent;
             let bodyB = pair.bodyB.parent;
 
-            // Local Player Wading
-            if (bodyA === playerBody || bodyB === playerBody) {
-                let other = bodyA === playerBody ? bodyB : bodyA;
-                if (other.liquidType && Math.abs(playerBody.velocity.x) > 0.5) {
-                    const pool = activeLiquidPools.find(p => p.body === other);
-                    if (pool) {
-                        pool.splash(playerBody.position.x, Math.abs(playerBody.velocity.x) * 0.12);
-                    }
-                }
-            }
+            if (bodyA.isLeverHandle || bodyB.isLeverHandle) {
+                const handle = bodyA.isLeverHandle ? bodyA : bodyB;
+                const pusher = bodyA.isLeverHandle ? bodyB : bodyA;
 
-            // Remote Player Wading
-            for (let id in otherPlayers) {
-                const remoteBody = otherPlayers[id];
-                if (bodyA === remoteBody || bodyB === remoteBody) {
-                    let other = bodyA === remoteBody ? bodyB : bodyA;
-                    if (other.liquidType && Math.abs(remoteBody.velocity.x) > 0.5) {
-                        const pool = activeLiquidPools.find(p => p.body === other);
-                        if (pool) {
-                            pool.splash(remoteBody.position.x, Math.abs(remoteBody.velocity.x) * 0.12);
+                // Verify the pusher is a player, remote player, or dynamic box
+                const isValidPusher = pusher === playerBody || pusher.isBox || otherPlayers[pusher.playerId];
+
+                if (isValidPusher) {
+                    const lever = gameLevers[handle.leverParentId];
+                    if (lever) {
+                        // Check if collision is vertical (ignores clicks/climbs from on top of the ramp)
+                        const isAbove = pusher.position.y < handle.position.y - 12;
+
+                        if (!isAbove) {
+                            // A. PUSH LEFT (Activate): Pusher hits the handle from the Right side
+                            if (pusher.position.x > handle.position.x + 5) {
+                                lever.isPressed = true;
+                            }
+                            // B. PUSH RIGHT (Deactivate): Pusher hits the handle from the Left side
+                            else if (pusher.position.x < handle.position.x - 5) {
+                                lever.isPressed = false;
+                            }
                         }
                     }
                 }
-            }
-
-            // NEW: Box Wading (Ripples while dragging/pushing boxes inside the pool)
-            if (bodyA.isBox && bodyB.liquidType && Math.abs(bodyA.velocity.x) > 0.5) {
-                const pool = activeLiquidPools.find(p => p.body === bodyB);
-                if (pool) pool.splash(bodyA.position.x, Math.abs(bodyA.velocity.x) * 0.1);
-            } else if (bodyB.isBox && bodyA.liquidType && Math.abs(bodyB.velocity.x) > 0.5) {
-                const pool = activeLiquidPools.find(p => p.body === bodyA);
-                if (pool) pool.splash(bodyB.position.x, Math.abs(bodyB.velocity.x) * 0.1);
             }
         }
     }
@@ -1715,6 +2051,53 @@ function startGame() {
             }
         }
 		
+		// --- Dynamic Lever Contact Pushing ---
+		
+		for (let id in gameLevers) {
+            const lever = gameLevers[id];
+            
+            // Combine local state with remote network updates
+            const isPressed = lever.isPressed || lever.networkPressed;
+
+            // State transition checks (Sends network update and prints console log exactly once)
+            if (isPressed && !lever.isPressedLocalState) {
+                lever.isPressedLocalState = true;
+                lever.isPressed = true; // Lock state
+                console.log(`Lever FLIPPED [ACTIVE] - ID: ${lever.leverId} | Color: ${lever.color.toUpperCase()}`);
+                
+                if (socket && socket.readyState === WebSocket.OPEN) {
+                    socket.send(JSON.stringify({ type: 'leverToggle', id: lever.leverId, pressed: true }));
+                }
+            } else if (!isPressed && lever.isPressedLocalState) {
+                lever.isPressedLocalState = false;
+                lever.isPressed = false; // Lock state
+                console.log(`Lever FLIPPED [INACTIVE] - ID: ${lever.leverId} | Color: ${lever.color.toUpperCase()}`);
+                
+                if (socket && socket.readyState === WebSocket.OPEN) {
+                    socket.send(JSON.stringify({ type: 'leverToggle', id: lever.leverId, pressed: false }));
+                }
+            }
+
+            // Interpolate visual angle smoothly
+            const targetAngle = lever.isPressed ? -0.5 : 0.5;
+            lever.angle += (targetAngle - lever.angle) * 0.15;
+
+            // Aligns the solid physical handle body bounds with the current rotation angle
+            if (lever.handleBody) {
+                const pivotX = lever.position.x;
+                const pivotY = lever.position.y + 15; 
+                const halfLength = 27.5; 
+
+                const nextCenterX = pivotX + Math.sin(lever.angle) * halfLength;
+                const nextCenterY = pivotY - Math.cos(lever.angle) * halfLength;
+
+                // Reposition, rotate, and dynamically toggle ramp orientation
+                Matter.Body.setPosition(lever.handleBody, { x: nextCenterX, y: nextCenterY });
+                Matter.Body.setAngle(lever.handleBody, lever.angle);
+                lever.handleBody.slopeType = lever.isPressed ? 'slope_rl' : 'slope_lr';
+            }
+        }
+
 		for (let id in gameDoors) {
             const door = gameDoors[id];
             
@@ -1727,6 +2110,16 @@ function startGame() {
                     break;
                 }
             }
+            if (!isTriggered) {
+                for (let lId in gameLevers) {
+                    const lever = gameLevers[lId];
+                    if (lever.color === door.color && lever.isPressed) {
+                        isTriggered = true;
+                        break;
+                    }
+                }
+            }
+			
 
             // Determine target coordinates (Sinks/slides when triggered, returns when released)
             const destX = isTriggered ? door.targetX : door.initialX;
@@ -1738,22 +2131,61 @@ function startGame() {
             const dist = Math.sqrt(dx * dx + dy * dy);
 
             if (dist > 0.1) {
-                let nextX = door.position.x;
-                let nextY = door.position.y;
-                const slideSpeed = 3; // Fixed velocity of 3 pixels per frame
+                let stepX = 0;
+                let stepY = 0;
+                const slideSpeed = 3; 
 
                 if (dist <= slideSpeed) {
-                    // Snap directly to destination to prevent micro-oscillations
-                    nextX = destX;
-                    nextY = destY;
+                    stepX = destX - door.position.x;
+                    stepY = destY - door.position.y;
                 } else {
-                    // Step toward destination with uniform velocity
-                    nextX += (dx / dist) * slideSpeed;
-                    nextY += (dy / dist) * slideSpeed;
+                    stepX = (dx / dist) * slideSpeed;
+                    stepY = (dy / dist) * slideSpeed;
+                }
+				
+				// --- PLATFORM RIDING LOGIC ---
+                
+                // 1. Check if Local Player is standing on top of this door
+                const pDx = Math.abs(playerBody.position.x - door.position.x);
+                const pDy = playerBody.position.y - door.position.y;
+                const playerTopOffset = -door.doorHeight / 2;
+
+                const playerIsRiding = (pDx < door.doorWidth / 2 + 10) && 
+                                       (pDy > playerTopOffset - 35 && pDy < playerTopOffset - 15);
+
+                if (playerIsRiding) {
+                    // Carry player position along with the platform displacement
+                    Matter.Body.setPosition(playerBody, { 
+                        x: playerBody.position.x + stepX, 
+                        y: playerBody.position.y + stepY 
+                    });
                 }
 
+                // 2. Check if any Box is standing on top of this door
+                for (let bId in gameBoxes) {
+                    const box = gameBoxes[bId];
+                    const bDx = Math.abs(box.position.x - door.position.x);
+                    const bDy = box.position.y - door.position.y;
+                    const boxTopOffset = -door.doorHeight / 2;
+
+                    const boxIsRiding = (bDx < door.doorWidth / 2 + 10) && 
+                                         (bDy > boxTopOffset - 35 && bDy < boxTopOffset - 15);
+
+                    if (boxIsRiding) {
+                        // Carry box position along with the platform displacement
+                        Matter.Body.setPosition(box, { 
+                            x: box.position.x + stepX, 
+                            y: box.position.y + stepY 
+                        });
+                    }
+                }
+
+
                 // Programmatically move the solid static body
-                Matter.Body.setPosition(door, { x: nextX, y: nextY });
+                Matter.Body.setPosition(door, { 
+                    x: door.position.x + stepX, 
+                    y: door.position.y + stepY 
+                });
             }
         }
 
@@ -1835,24 +2267,24 @@ function startGame() {
         });
 
         // --- Smoothly Interpolate (Slide) Other Players ---
-        for (let id in otherPlayers) {
+       for (let id in otherPlayers) {
             const remoteBody = otherPlayers[id];
             if (remoteBody && remoteBody.targetX !== undefined) {
 				
-				// SKIP network position overrides if we are actively pushing them!
-                // This lets Matter.js handle the collision physics naturally.
-				if (collidingPlayers.has(id)) {
+                // FIXED: Only skip network sync if we are ACTIVELY trying to move/push them.
+                // If we are standing still, always let the network update them so they can move away freely!
+                const isLocalPlayerMoving = keys.Left || keys.Right || Math.abs(localSpeedX) > 0.1;
+                
+                if (collidingPlayers.has(id) && isLocalPlayerMoving) {
                     continue; 
                 }
 				
                 let dx = remoteBody.targetX - remoteBody.position.x;
                 let dy = remoteBody.targetY - remoteBody.position.y;
 
-                // Teleport if too far to prevent extreme rubberbanding (e.g. on spawn)
                 if (Math.abs(dx) > 150 || Math.abs(dy) > 150) {
                     Matter.Body.setPosition(remoteBody, { x: remoteBody.targetX, y: remoteBody.targetY });
                 } else {
-                    // Slide 25% closer to their true server coordinates every frame
                     const lerpFactor = 0.25;
                     
                     Matter.Body.setVelocity(remoteBody, { 
@@ -1890,6 +2322,7 @@ function startGame() {
                     lastSentY = playerBody.position.y;
                 }
             }
+			
 			
 			if (collidingBoxes.size > 0) {
 				const boxUpdates = [];
@@ -2008,60 +2441,49 @@ function setupControls() {
     });
 	
 	function getMouseWorldPosition(e) {
+        if (!activeCameraMatrix) return { x: 0, y: 0 };
+
         const rect = canvas.getBoundingClientRect();
+        // Get mouse position relative to the canvas element boundary
         const sx = e.clientX - rect.left;
         const sy = e.clientY - rect.top;
 
-        // The game's fixed internal design aspect ratio (1000 / 600 = 1.666...)
-        const targetAspect = 1000 / 600;
-        const currentAspect = rect.width / rect.height;
+        // Account for internal canvas buffering resolution vs physical CSS element stretch
+        const canvasX = sx * (canvas.width / rect.width);
+        const canvasY = sy * (canvas.height / rect.height);
 
-        let w, h, ox, oy;
-        if (currentAspect > targetAspect) {
-            // Height-constrained (Letterbox bars on the sides)
-            h = rect.height;
-            w = h * targetAspect;
-            ox = (rect.width - w) / 2;
-            oy = 0;
-        } else {
-            // Width-constrained (Letterbox bars on the top and bottom)
-            w = rect.width;
-            h = w / targetAspect;
-            ox = 0;
-            oy = (rect.height - h) / 2;
+        try {
+            // Invert the camera matrix to translate screen-space back to world-space
+            const inverseMatrix = activeCameraMatrix.inverse();
+            const screenPoint = new DOMPoint(canvasX, canvasY);
+            const worldPoint = screenPoint.matrixTransform(inverseMatrix);
+
+            return {
+                x: worldPoint.x,
+                y: worldPoint.y
+            };
+        } catch (err) {
+            console.error("Matrix inversion failed:", err);
+            return { x: 0, y: 0 };
         }
-
-        // Calculate coordinates relative to the actual rendered game container (excluding black bars)
-        const relativeX = sx - ox;
-        const relativeY = sy - oy;
-
-        // Map to 1000x600 virtual game resolution
-        const canvasX = (relativeX / w) * 1000;
-        const canvasY = (relativeY / h) * 600;
-
-        // Scale to active world camera boundaries
-        const camWidth = render.bounds.max.x - render.bounds.min.x;
-        const camHeight = render.bounds.max.y - render.bounds.min.y;
-
-        return {
-            x: render.bounds.min.x + (canvasX / 1000) * camWidth,
-            y: render.bounds.min.y + (canvasY / 600) * camHeight
-        };
-    };
+    }
 
     canvas.addEventListener('pointerdown', (e) => {
         const mouseWorld = getMouseWorldPosition(e);
         
-        // Check if player clicked/touched inside their own character boundaries (35px radius buffer)
+        // Calculate dynamic, zoom-aware click tolerance (maintains a constant physical tap size on screen)
+        const camWidth = render.bounds.max.x - render.bounds.min.x;
+        const zoomFactor = camWidth / 1000; // 1.0 at standard zoom, larger when zoomed out
+        const scaledTolerance = 45 * zoomFactor; // Scales up to match your visual size on screen
+
+        // Check if player clicked/touched inside their scaled character boundaries
         const distToPlayer = Math.hypot(mouseWorld.x - playerBody.position.x, mouseWorld.y - playerBody.position.y);
         
-        if (distToPlayer < 35) {
+        if (distToPlayer < scaledTolerance) {
             isAiming = true;
-			
             aimStart = { x: playerBody.position.x, y: playerBody.position.y };
             aimCurrent = { x: mouseWorld.x, y: mouseWorld.y };
             canvas.setPointerCapture(e.pointerId); // Forces tracking even if dragging off-canvas
-			
         }
     });
 
@@ -2299,6 +2721,7 @@ function resetLevel() {
     activePressedButtons.clear();
     activeLiquids.clear();
     submergedBoxes.clear();
+	submergedProjectiles.clear();
 
     for (let id in gameButtons) {
         const btn = gameButtons[id];
@@ -2307,6 +2730,25 @@ function resetLevel() {
             btn.networkPressed = false;
             // Snaps button back up to unpressed height
             Matter.Body.setPosition(btn, { x: btn.position.x, y: btn.initialY });
+        }
+    }
+	
+	// FIXED: 3.5 Reset All Sliding Doors back to their initial coordinates instantly
+    for (let id in gameDoors) {
+        const door = gameDoors[id];
+        if (door) {
+            Matter.Body.setPosition(door, { x: door.initialX, y: door.initialY });
+        }
+    }
+	
+	// 3.7 Reset All Levers back to unpressed (pointing right) state instantly
+    for (let id in gameLevers) {
+        const lever = gameLevers[id];
+        if (lever) {
+            lever.isPressed = false;
+			lever.isPressedLocalState = false;
+            lever.networkPressed = false;
+            lever.angle = 0.5; // Reset visual handle rotation to point right
         }
     }
 
