@@ -144,7 +144,7 @@ let loadedMapData = {
       "y": 840,
       "width": 50,
       "height": 10,
-      "targetX": 2350,
+      "targetX": 2370,
       "targetY": 840
     },
     {
@@ -163,7 +163,7 @@ let loadedMapData = {
     },
     {
       "type": "slope_rl",
-      "x": 2300,
+      "x": 2320,
       "y": 750,
       "width": 100,
       "height": 100
@@ -177,7 +177,7 @@ let loadedMapData = {
     },
     {
       "type": "slope_rl",
-      "x": 2300,
+      "x": 2320,
       "y": 450,
       "width": 100,
       "height": 100
@@ -215,7 +215,7 @@ let loadedMapData = {
     },
     {
       "type": "ground",
-      "x": 2250,
+      "x": 2270,
       "y": 550,
       "width": 50,
       "height": 200,
